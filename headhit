@@ -1,0 +1,85 @@
+
+
+-- Settings
+_G.HeadSize = 20 -- Adjust the size of enemy hitboxes
+_G.Disabled = false -- Toggle hitbox adjustment
+_G.TeamCheck = true -- Enable dynamic team check (affect enemies only)
+
+-- Function to check if a player is an enemy
+local function isEnemy(player)
+    local localPlayer = game:GetService("Players").LocalPlayer
+    if not _G.TeamCheck then
+        return true
+    end
+    if not localPlayer.Team or not player.Team then
+        return true
+    end
+    return localPlayer.Team ~= player.Team
+end
+
+-- Adjust hitboxes dynamically
+game:GetService("RunService").RenderStepped:Connect(function()
+    if not _G.Disabled then
+        for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+            if player.Name ~= game:GetService("Players").LocalPlayer.Name then
+                pcall(function()
+                    if isEnemy(player) then
+                        local character = player.Character
+                        local head = character and character:FindFirstChild("Head")
+                        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+                        if head and humanoid then
+                            if humanoid.Health > 0 then
+                                -- Adjust enemy hitbox (when alive)
+                                head.Size = Vector3.new(_G.HeadSize, _G.HeadSize, _G.HeadSize)
+                                head.Transparency = 0.5
+                                head.BrickColor = BrickColor.new("Red")
+                                head.Material = Enum.Material.Neon
+                                head.CanCollide = false
+                                head.Massless = true
+                            else
+                                -- Hide hitbox when dead
+                                head.Transparency = 1
+                                head.CanTouch = false
+                                head.CanQuery = false
+                            end
+                        end
+                    else
+                        -- Reset teammate or neutral player hitbox to default
+                        local head = player.Character and player.Character:FindFirstChild("Head")
+                        if head then
+                            head.Size = Vector3.new(2, 1, 1) -- Default head size
+                            head.Transparency = 0
+                            head.BrickColor = BrickColor.new("Medium stone grey")
+                            head.Material = Enum.Material.Plastic
+                            head.CanCollide = true
+                            head.Massless = false
+                        end
+                    end
+                end)
+            end
+        end
+    end
+end)
+
+-- Raycast logic for projectiles to detect hits
+function RaycastForHitbox(origin, direction, length, ignoreList)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = ignoreList
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+
+    local ray = workspace:Raycast(origin, direction * length, raycastParams)
+    if ray then
+        local hit = ray.Instance
+        if hit and hit:IsA("BasePart") and hit.Parent:FindFirstChild("Humanoid") then
+            local humanoid = hit.Parent:FindFirstChild("Humanoid")
+            local head = hit.Parent:FindFirstChild("Head")
+            if humanoid and head and hit == head then
+                print("Hit enemy:", hit.Parent.Name)
+                return hit.Parent
+            end
+        end
+    end
+    return nil
+end
