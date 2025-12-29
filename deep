@@ -1,0 +1,656 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+-- Settings
+_G.PlayerHeadSize = 20
+_G.NPCHeadSize = 20
+_G.Disabled = false
+_G.TeamCheck = true
+_G.NPCEnabled = true
+_G.ESPEnabled = true
+
+-- ESP Settings
+_G.ESPColor = Color3.fromRGB(255, 50, 50)
+_G.ESPTransparency = 0.3
+_G.ShowName = true
+_G.ShowDistance = true
+_G.ShowHealth = true
+_G.MaxDistance = 1000
+
+-- Storage for ESP boxes and NPC tracking
+local ESPBoxes = {}
+local TrackedNPCs = {}
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Create Modern GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "HitboxConfigGUI"
+ScreenGui.Parent = game.CoreGui
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 350, 0, 500)
+MainFrame.Position = UDim2.new(0, 10, 0.5, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "HITBOX CONFIGURATOR"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 40, 0, 40)
+CloseButton.Position = UDim2.new(1, -40, 0, 0)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Text = "✕"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 18
+CloseButton.Parent = TitleBar
+
+-- Toggle Button (for showing/hiding GUI)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.new(0, 40, 0, 40)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+ToggleButton.Text = "⚙"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 20
+ToggleButton.Visible = false
+ToggleButton.Parent = ScreenGui
+
+-- Content Frame
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, -20, 1, -60)
+ContentFrame.Position = UDim2.new(0, 10, 0, 50)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+-- Create scroll frame for settings
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Name = "ScrollFrame"
+ScrollFrame.Size = UDim2.new(1, 0, 1, 0)
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.ScrollBarThickness = 4
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
+ScrollFrame.Parent = ContentFrame
+
+-- Create UI List Layout
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 15)
+UIListLayout.Parent = ScrollFrame
+
+-- Function to create modern setting elements
+local function createSlider(label, min, max, default, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 70)
+    container.BackgroundTransparency = 1
+    
+    local labelText = Instance.new("TextLabel")
+    labelText.Size = UDim2.new(1, 0, 0, 20)
+    labelText.BackgroundTransparency = 1
+    labelText.Text = label
+    labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    labelText.Font = Enum.Font.Gotham
+    labelText.TextSize = 14
+    labelText.TextXAlignment = Enum.TextXAlignment.Left
+    labelText.Parent = container
+    
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(1, 0, 0, 30)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    sliderFrame.BorderSizePixel = 0
+    sliderFrame.Parent = container
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderFrame
+    
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Size = UDim2.new(1, 0, 0, 20)
+    valueLabel.Position = UDim2.new(0, 0, 0, 30)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Text = tostring(default)
+    valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valueLabel.Font = Enum.Font.GothamBold
+    valueLabel.TextSize = 14
+    valueLabel.Parent = container
+    
+    local isDragging = false
+    
+    local function updateValue(x)
+        local relativeX = math.clamp((x - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
+        local value = math.floor(min + (max - min) * relativeX + 0.5)
+        sliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
+        valueLabel.Text = tostring(value)
+        callback(value)
+    end
+    
+    sliderFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = true
+            updateValue(input.Position.X)
+        end
+    end)
+    
+    sliderFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateValue(input.Position.X)
+        end
+    end)
+    
+    return container
+end
+
+local function createToggle(label, default, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 40)
+    container.BackgroundTransparency = 1
+    
+    local labelText = Instance.new("TextLabel")
+    labelText.Size = UDim2.new(0.7, 0, 1, 0)
+    labelText.BackgroundTransparency = 1
+    labelText.Text = label
+    labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    labelText.Font = Enum.Font.Gotham
+    labelText.TextSize = 14
+    labelText.TextXAlignment = Enum.TextXAlignment.Left
+    labelText.Parent = container
+    
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(0, 50, 0, 25)
+    toggleFrame.Position = UDim2.new(0.7, 0, 0.5, -12.5)
+    toggleFrame.BackgroundColor3 = default and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+    toggleFrame.BorderSizePixel = 0
+    toggleFrame.Parent = container
+    
+    local toggleCircle = Instance.new("Frame")
+    toggleCircle.Size = UDim2.new(0, 21, 0, 21)
+    toggleCircle.Position = default and UDim2.new(1, -23, 0.5, -10.5) or UDim2.new(0, 2, 0.5, -10.5)
+    toggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    toggleCircle.BorderSizePixel = 0
+    toggleCircle.Parent = toggleFrame
+    
+    toggleFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local newValue = not default
+            default = newValue
+            
+            local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            
+            if newValue then
+                local tween1 = TweenService:Create(toggleFrame, tweenInfo, {BackgroundColor3 = Color3.fromRGB(0, 120, 215)})
+                local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(1, -23, 0.5, -10.5)})
+                tween1:Play()
+                tween2:Play()
+            else
+                local tween1 = TweenService:Create(toggleFrame, tweenInfo, {BackgroundColor3 = Color3.fromRGB(60, 60, 70)})
+                local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(0, 2, 0.5, -10.5)})
+                tween1:Play()
+                tween2:Play()
+            end
+            
+            callback(newValue)
+        end
+    end)
+    
+    return container
+end
+
+-- Player Settings Section
+local playerSection = Instance.new("TextLabel")
+playerSection.Size = UDim2.new(1, 0, 0, 30)
+playerSection.BackgroundTransparency = 1
+playerSection.Text = "PLAYER SETTINGS"
+playerSection.TextColor3 = Color3.fromRGB(0, 120, 215)
+playerSection.Font = Enum.Font.GothamBold
+playerSection.TextSize = 16
+playerSection.TextXAlignment = Enum.TextXAlignment.Left
+playerSection.Parent = ScrollFrame
+
+-- Player Hitbox Size Slider
+local playerSlider = createSlider("Player Hitbox Size", 1, 50, _G.PlayerHeadSize, function(value)
+    _G.PlayerHeadSize = value
+end)
+playerSlider.Parent = ScrollFrame
+
+-- NPC Settings Section
+local npcSection = Instance.new("TextLabel")
+npcSection.Size = UDim2.new(1, 0, 0, 30)
+npcSection.BackgroundTransparency = 1
+npcSection.Text = "NPC SETTINGS"
+npcSection.TextColor3 = Color3.fromRGB(215, 120, 0)
+npcSection.Font = Enum.Font.GothamBold
+npcSection.TextSize = 16
+npcSection.TextXAlignment = Enum.TextXAlignment.Left
+npcSection.Parent = ScrollFrame
+
+-- NPC Hitbox Size Slider
+local npcSlider = createSlider("NPC Hitbox Size", 1, 50, _G.NPCHeadSize, function(value)
+    _G.NPCHeadSize = value
+end)
+npcSlider.Parent = ScrollFrame
+
+-- Toggles Section
+local toggleSection = Instance.new("TextLabel")
+toggleSection.Size = UDim2.new(1, 0, 0, 30)
+toggleSection.BackgroundTransparency = 1
+toggleSection.Text = "TOGGLE SETTINGS"
+toggleSection.TextColor3 = Color3.fromRGB(120, 215, 0)
+toggleSection.Font = Enum.Font.GothamBold
+toggleSection.TextSize = 16
+toggleSection.TextXAlignment = Enum.TextXAlignment.Left
+toggleSection.Parent = ScrollFrame
+
+-- Create Toggles
+local npcToggle = createToggle("Enable NPC Detection", _G.NPCEnabled, function(value)
+    _G.NPCEnabled = value
+end)
+npcToggle.Parent = ScrollFrame
+
+local teamToggle = createToggle("Team Check", _G.TeamCheck, function(value)
+    _G.TeamCheck = value
+end)
+teamToggle.Parent = ScrollFrame
+
+local espToggle = createToggle("Enable ESP", _G.ESPEnabled, function(value)
+    _G.ESPEnabled = value
+end)
+espToggle.Parent = ScrollFrame
+
+-- Master Toggle
+local masterToggle = createToggle("Enable Hitbox", not _G.Disabled, function(value)
+    _G.Disabled = not value
+end)
+masterToggle.Parent = ScrollFrame
+
+-- Update scroll frame size
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+end)
+
+-- GUI Interaction Functions
+local isDragging = false
+local dragStart, frameStart
+
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = true
+        dragStart = input.Position
+        frameStart = MainFrame.Position
+    end
+end)
+
+TitleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(frameStart.X.Scale, frameStart.X.Offset + delta.X,
+                                      frameStart.Y.Scale, frameStart.Y.Offset + delta.Y)
+    end
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    ToggleButton.Visible = true
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    ToggleButton.Visible = false
+end)
+
+-- Function to check if a player is an enemy
+local function isEnemy(player)
+    if not _G.TeamCheck then return true end
+    if not LocalPlayer.Team or not player.Team then return true end
+    return LocalPlayer.Team ~= player.Team
+end
+
+-- ESP Functions
+local function createESPBox(character, isNPC)
+    if not character or not character:FindFirstChild("Head") then return nil end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.Adornee = character
+    highlight.FillColor = _G.ESPColor
+    highlight.FillTransparency = _G.ESPTransparency
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+    
+    if _G.ShowName then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESP_Billboard"
+        billboard.Adornee = character:WaitForChild("Head")
+        billboard.Size = UDim2.new(0, 200, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = isNPC and "NPC" or character.Name
+        nameLabel.TextColor3 = _G.ESPColor
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextSize = 14
+        nameLabel.Parent = billboard
+        
+        if _G.ShowDistance or _G.ShowHealth then
+            local infoLabel = Instance.new("TextLabel")
+            infoLabel.Size = UDim2.new(1, 0, 0.5, 0)
+            infoLabel.Position = UDim2.new(0, 0, 0.5, 0)
+            infoLabel.BackgroundTransparency = 1
+            infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+            infoLabel.Font = Enum.Font.Gotham
+            infoLabel.TextSize = 12
+            infoLabel.Parent = billboard
+            
+            ESPBoxes[character] = {
+                Highlight = highlight,
+                Billboard = billboard,
+                InfoLabel = infoLabel,
+                IsNPC = isNPC
+            }
+        else
+            ESPBoxes[character] = {
+                Highlight = highlight,
+                Billboard = billboard,
+                IsNPC = isNPC
+            }
+        end
+        
+        billboard.Parent = character
+    else
+        ESPBoxes[character] = {
+            Highlight = highlight,
+            IsNPC = isNPC
+        }
+    end
+    
+    return ESPBoxes[character]
+end
+
+local function updateESP(character, espData)
+    if not character or not espData then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    -- Remove ESP if player is dead or NPC is dead
+    if humanoid.Health <= 0 then
+        if espData.Highlight then espData.Highlight:Destroy() end
+        if espData.Billboard then espData.Billboard:Destroy() end
+        ESPBoxes[character] = nil
+        return
+    end
+    
+    -- Update distance and health info
+    if espData.InfoLabel then
+        local infoText = ""
+        
+        if _G.ShowDistance then
+            local distance = (character:GetPivot().Position - Camera.CFrame.Position).Magnitude
+            if distance <= _G.MaxDistance then
+                infoText = string.format("Dist: %d", math.floor(distance))
+            end
+        end
+        
+        if _G.ShowHealth then
+            if infoText ~= "" then
+                infoText = infoText .. " | "
+            end
+            infoText = infoText .. string.format("HP: %d/%d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth))
+        end
+        
+        espData.InfoLabel.Text = infoText
+    end
+    
+    -- Update ESP color based on team
+    if not espData.IsNPC then
+        local player = Players:GetPlayerFromCharacter(character)
+        if player and player.Team then
+            espData.Highlight.FillColor = isEnemy(player) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 150, 255)
+        end
+    end
+end
+
+-- Function to find NPCs in workspace
+local function findNPCs()
+    if not _G.NPCEnabled then return {} end
+    
+    local npcs = {}
+    
+    -- Look for models with Humanoid that aren't player characters
+    for _, model in ipairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") then
+            local isPlayer = false
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character == model then
+                    isPlayer = true
+                    break
+                end
+            end
+            
+            if not isPlayer and not TrackedNPCs[model] then
+                table.insert(npcs, model)
+                TrackedNPCs[model] = true
+            end
+        end
+    end
+    
+    return npcs
+end
+
+-- Main hitbox adjustment function
+local function adjustHitbox(character, headSize, isNPC)
+    pcall(function()
+        local head = character:FindFirstChild("Head")
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        if head and humanoid then
+            if humanoid.Health > 0 then
+                -- Adjust hitbox when alive
+                head.Size = Vector3.new(headSize, headSize, headSize)
+                head.Transparency = 0.5
+                head.BrickColor = isNPC and BrickColor.new("Bright orange") or BrickColor.new("Bright red")
+                head.Material = Enum.Material.Neon
+                head.CanCollide = false
+                head.Massless = true
+                
+                -- Create/update ESP if enabled
+                if _G.ESPEnabled then
+                    local espData = ESPBoxes[character] or createESPBox(character, isNPC)
+                    if espData then
+                        updateESP(character, espData)
+                    end
+                end
+            else
+                -- Hide hitbox when dead
+                head.Transparency = 1
+                head.CanTouch = false
+                head.CanQuery = false
+                
+                -- Remove ESP when dead
+                local espData = ESPBoxes[character]
+                if espData then
+                    if espData.Highlight then espData.Highlight:Destroy() end
+                    if espData.Billboard then espData.Billboard:Destroy() end
+                    ESPBoxes[character] = nil
+                end
+            end
+        end
+    end)
+end
+
+-- Main loop for hitbox adjustment
+RunService.RenderStepped:Connect(function()
+    if not _G.Disabled then
+        -- Process players
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    if _G.TeamCheck and not isEnemy(player) then
+                        -- Reset teammate hitbox
+                        local head = character:FindFirstChild("Head")
+                        if head then
+                            head.Size = Vector3.new(2, 1, 1)
+                            head.Transparency = 0
+                            head.BrickColor = BrickColor.new("Medium stone grey")
+                            head.Material = Enum.Material.Plastic
+                            head.CanCollide = true
+                            head.Massless = false
+                        end
+                    else
+                        adjustHitbox(character, _G.PlayerHeadSize, false)
+                    end
+                end
+            end
+        end
+        
+        -- Process NPCs
+        if _G.NPCEnabled then
+            local npcs = findNPCs()
+            for _, npc in ipairs(npcs) do
+                adjustHitbox(npc, _G.NPCHeadSize, true)
+            end
+        end
+        
+        -- Clean up dead ESP boxes
+        for character, espData in pairs(ESPBoxes) do
+            if not character.Parent then
+                if espData.Highlight then espData.Highlight:Destroy() end
+                if espData.Billboard then espData.Billboard:Destroy() end
+                ESPBoxes[character] = nil
+            elseif espData.IsNPC then
+                TrackedNPCs[character] = nil
+            end
+        end
+    else
+        -- Reset all hitboxes when disabled
+        for _, player in ipairs(Players:GetPlayers()) do
+            local character = player.Character
+            if character then
+                local head = character:FindFirstChild("Head")
+                if head then
+                    head.Size = Vector3.new(2, 1, 1)
+                    head.Transparency = 0
+                    head.BrickColor = BrickColor.new("Medium stone grey")
+                    head.Material = Enum.Material.Plastic
+                    head.CanCollide = true
+                    head.Massless = false
+                end
+            end
+        end
+        
+        -- Remove all ESP
+        for character, espData in pairs(ESPBoxes) do
+            if espData.Highlight then espData.Highlight:Destroy() end
+            if espData.Billboard then espData.Billboard:Destroy() end
+            ESPBoxes[character] = nil
+        end
+    end
+end)
+
+-- Raycast function for aimbot detection (optional integration)
+function RaycastForHitbox(origin, direction, length, ignoreList)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = ignoreList
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+
+    local ray = workspace:Raycast(origin, direction * length, raycastParams)
+    if ray then
+        local hit = ray.Instance
+        if hit and hit:IsA("BasePart") then
+            local character = hit.Parent
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local head = character:FindFirstChild("Head")
+            
+            if humanoid and head and hit == head and humanoid.Health > 0 then
+                print("Hit detected on:", character.Name)
+                return character
+            end
+        end
+    end
+    return nil
+end
+
+-- Player added/removed handlers
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        wait(1) -- Wait for character to fully load
+        if not _G.Disabled then
+            TrackedNPCs[character] = nil -- Ensure player characters aren't tracked as NPCs
+        end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    local character = player.Character
+    if character and ESPBoxes[character] then
+        local espData = ESPBoxes[character]
+        if espData.Highlight then espData.Highlight:Destroy() end
+        if espData.Billboard then espData.Billboard:Destroy() end
+        ESPBoxes[character] = nil
+    end
+end)
+
+-- Clean up on script removal
+game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.RightShift then
+        _G.Disabled = not _G.Disabled
+        masterToggle:FindFirstChild("ToggleFrame").InputBegan:Fire(input)
+    end
+end)
+
+-- Initial GUI state
+ToggleButton.Visible = false
+
+print("Hitbox Configurator Loaded!")
+print("Press RightShift to toggle hitboxes")
+print("Click the gear icon to open settings")
