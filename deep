@@ -23,6 +23,7 @@ _G.MaxDistance = 1000
 
 -- Storage for ESP boxes and NPC tracking
 local ESPBoxes = {}
+local PlayerESPBoxes = {} -- Separate storage for player ESP
 local TrackedNPCs = {}
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -587,14 +588,17 @@ local function isEnemy(player)
     return LocalPlayer.Team ~= player.Team
 end
 
--- ESP Functions
-local function createESPBox(character, isNPC)
+-- ESP Functions for Players
+local function createPlayerESPBox(character)
     if not character or not character:FindFirstChild("Head") then return nil end
     
+    local player = Players:GetPlayerFromCharacter(character)
+    if not player then return nil end
+    
     local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
+    highlight.Name = "PlayerESP_Highlight"
     highlight.Adornee = character
-    highlight.FillColor = _G.ESPColor
+    highlight.FillColor = isEnemy(player) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 150, 255)
     highlight.FillTransparency = _G.ESPTransparency
     highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
     highlight.OutlineTransparency = 0
@@ -603,7 +607,7 @@ local function createESPBox(character, isNPC)
     
     if _G.ShowName then
         local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ESP_Billboard"
+        billboard.Name = "PlayerESP_Billboard"
         billboard.Adornee = character:WaitForChild("Head")
         billboard.Size = UDim2.new(0, 200, 0, 50)
         billboard.StudsOffset = Vector3.new(0, 3, 0)
@@ -612,8 +616,74 @@ local function createESPBox(character, isNPC)
         local nameLabel = Instance.new("TextLabel")
         nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = isNPC and "NPC" or character.Name
-        nameLabel.TextColor3 = _G.ESPColor
+        nameLabel.Text = character.Name
+        nameLabel.TextColor3 = isEnemy(player) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 150, 255)
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextSize = 14
+        nameLabel.Parent = billboard
+        
+        if _G.ShowDistance or _G.ShowHealth then
+            local infoLabel = Instance.new("TextLabel")
+            infoLabel.Size = UDim2.new(1, 0, 0.5, 0)
+            infoLabel.Position = UDim2.new(0, 0, 0.5, 0)
+            infoLabel.BackgroundTransparency = 1
+            infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+            infoLabel.Font = Enum.Font.Gotham
+            infoLabel.TextSize = 12
+            infoLabel.Parent = billboard
+            
+            PlayerESPBoxes[character] = {
+                Highlight = highlight,
+                Billboard = billboard,
+                InfoLabel = infoLabel,
+                Player = player
+            }
+        else
+            PlayerESPBoxes[character] = {
+                Highlight = highlight,
+                Billboard = billboard,
+                Player = player
+            }
+        end
+        
+        billboard.Parent = character
+    else
+        PlayerESPBoxes[character] = {
+            Highlight = highlight,
+            Player = player
+        }
+    end
+    
+    return PlayerESPBoxes[character]
+end
+
+-- ESP Functions for NPCs
+local function createNPCESPBox(character)
+    if not character or not character:FindFirstChild("Head") then return nil end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "NPCESP_Highlight"
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(255, 150, 0) -- Orange for NPCs
+    highlight.FillTransparency = _G.ESPTransparency
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+    
+    if _G.ShowName then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "NPCESP_Billboard"
+        billboard.Adornee = character:WaitForChild("Head")
+        billboard.Size = UDim2.new(0, 200, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = "NPC"
+        nameLabel.TextColor3 = Color3.fromRGB(255, 150, 0)
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = 14
         nameLabel.Parent = billboard
@@ -632,13 +702,13 @@ local function createESPBox(character, isNPC)
                 Highlight = highlight,
                 Billboard = billboard,
                 InfoLabel = infoLabel,
-                IsNPC = isNPC
+                IsNPC = true
             }
         else
             ESPBoxes[character] = {
                 Highlight = highlight,
                 Billboard = billboard,
-                IsNPC = isNPC
+                IsNPC = true
             }
         end
         
@@ -646,7 +716,7 @@ local function createESPBox(character, isNPC)
     else
         ESPBoxes[character] = {
             Highlight = highlight,
-            IsNPC = isNPC
+            IsNPC = true
         }
     end
     
@@ -663,7 +733,11 @@ local function updateESP(character, espData)
     if humanoid.Health <= 0 then
         if espData.Highlight then espData.Highlight:Destroy() end
         if espData.Billboard then espData.Billboard:Destroy() end
-        ESPBoxes[character] = nil
+        if espData.Player then
+            PlayerESPBoxes[character] = nil
+        else
+            ESPBoxes[character] = nil
+        end
         return
     end
     
@@ -688,11 +762,14 @@ local function updateESP(character, espData)
         espData.InfoLabel.Text = infoText
     end
     
-    -- Update ESP color based on team
-    if not espData.IsNPC then
-        local player = Players:GetPlayerFromCharacter(character)
-        if player and player.Team then
-            espData.Highlight.FillColor = isEnemy(player) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 150, 255)
+    -- Update ESP color for players based on team
+    if espData.Player then
+        espData.Highlight.FillColor = isEnemy(espData.Player) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 150, 255)
+        if espData.Billboard then
+            local nameLabel = espData.Billboard:FindFirstChild("TextLabel")
+            if nameLabel then
+                nameLabel.TextColor3 = espData.Highlight.FillColor
+            end
         end
     end
 end
@@ -742,7 +819,12 @@ local function adjustHitbox(character, headSize, isNPC)
                 
                 -- Create/update ESP if enabled
                 if _G.ESPEnabled then
-                    local espData = ESPBoxes[character] or createESPBox(character, isNPC)
+                    local espData
+                    if isNPC then
+                        espData = ESPBoxes[character] or createNPCESPBox(character)
+                    else
+                        espData = PlayerESPBoxes[character] or createPlayerESPBox(character)
+                    end
                     if espData then
                         updateESP(character, espData)
                     end
@@ -754,11 +836,15 @@ local function adjustHitbox(character, headSize, isNPC)
                 head.CanQuery = false
                 
                 -- Remove ESP when dead
-                local espData = ESPBoxes[character]
+                local espData = isNPC and ESPBoxes[character] or PlayerESPBoxes[character]
                 if espData then
                     if espData.Highlight then espData.Highlight:Destroy() end
                     if espData.Billboard then espData.Billboard:Destroy() end
-                    ESPBoxes[character] = nil
+                    if isNPC then
+                        ESPBoxes[character] = nil
+                    else
+                        PlayerESPBoxes[character] = nil
+                    end
                 end
             end
         end
@@ -783,6 +869,13 @@ RunService.RenderStepped:Connect(function()
                             head.Material = Enum.Material.Plastic
                             head.CanCollide = true
                             head.Massless = false
+                        end
+                        -- Remove player ESP for teammates
+                        local espData = PlayerESPBoxes[character]
+                        if espData then
+                            if espData.Highlight then espData.Highlight:Destroy() end
+                            if espData.Billboard then espData.Billboard:Destroy() end
+                            PlayerESPBoxes[character] = nil
                         end
                     else
                         adjustHitbox(character, _G.PlayerHeadSize, false)
@@ -809,6 +902,15 @@ RunService.RenderStepped:Connect(function()
                 TrackedNPCs[character] = nil
             end
         end
+        
+        -- Clean up dead Player ESP boxes
+        for character, espData in pairs(PlayerESPBoxes) do
+            if not character.Parent then
+                if espData.Highlight then espData.Highlight:Destroy() end
+                if espData.Billboard then espData.Billboard:Destroy() end
+                PlayerESPBoxes[character] = nil
+            end
+        end
     else
         -- Reset all hitboxes when disabled
         for _, player in ipairs(Players:GetPlayers()) do
@@ -831,6 +933,12 @@ RunService.RenderStepped:Connect(function()
             if espData.Highlight then espData.Highlight:Destroy() end
             if espData.Billboard then espData.Billboard:Destroy() end
             ESPBoxes[character] = nil
+        end
+        
+        for character, espData in pairs(PlayerESPBoxes) do
+            if espData.Highlight then espData.Highlight:Destroy() end
+            if espData.Billboard then espData.Billboard:Destroy() end
+            PlayerESPBoxes[character] = nil
         end
     end
 end)
@@ -868,11 +976,11 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
     local character = player.Character
-    if character and ESPBoxes[character] then
-        local espData = ESPBoxes[character]
+    if character and PlayerESPBoxes[character] then
+        local espData = PlayerESPBoxes[character]
         if espData.Highlight then espData.Highlight:Destroy() end
         if espData.Billboard then espData.Billboard:Destroy() end
-        ESPBoxes[character] = nil
+        PlayerESPBoxes[character] = nil
     end
 end)
 
@@ -893,3 +1001,4 @@ print("Press INSERT to toggle GUI")
 print("Press RightShift to toggle hitboxes")
 print("Toggle button is on the top right")
 print("GUI starts hidden - click the gear icon to open it")
+print("Players now have separate ESP from NPCs!")
