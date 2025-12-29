@@ -26,71 +26,120 @@ local TrackedNPCs = {}
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- GUI State
+local GUIVisible = false
+local GUIEnabled = false
+
 -- Create Modern GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HitboxConfigGUI"
 ScreenGui.Parent = game.CoreGui
+
+-- Top Right Toggle Button
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Position = UDim2.new(1, -60, 0, 10)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+ToggleButton.BackgroundTransparency = 0.1
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Text = "⚙"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 24
+ToggleButton.ZIndex = 100
+ToggleButton.Parent = ScreenGui
+
+-- Add hover effect to toggle button
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 8)
+ButtonCorner.Parent = ToggleButton
+
+local ButtonStroke = Instance.new("UIStroke")
+ButtonStroke.Color = Color3.fromRGB(80, 80, 90)
+ButtonStroke.Thickness = 2
+ButtonStroke.Parent = ToggleButton
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 350, 0, 500)
 MainFrame.Position = UDim2.new(0, 10, 0.5, -250)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-MainFrame.BackgroundTransparency = 0.1
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
+MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
+
+-- Frame Corner
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 12)
+FrameCorner.Parent = MainFrame
+
+-- Frame Stroke
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Color = Color3.fromRGB(60, 60, 70)
+FrameStroke.Thickness = 2
+FrameStroke.Parent = MainFrame
 
 -- Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+TitleBar.Size = UDim2.new(1, 0, 0, 50)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
 
+local TitleBarCorner = Instance.new("UICorner")
+TitleBarCorner.CornerRadius = UDim.new(0, 12)
+TitleBarCorner.Parent = TitleBar
+
 local Title = Instance.new("TextLabel")
 Title.Name = "Title"
-Title.Size = UDim2.new(1, -40, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Position = UDim2.new(0, 20, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "HITBOX CONFIGURATOR"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 16
+Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
+
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Name = "SubTitle"
+SubTitle.Size = UDim2.new(1, -50, 0, 20)
+SubTitle.Position = UDim2.new(0, 20, 0, 25)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "Customize Player & NPC Hitboxes"
+SubTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+SubTitle.Font = Enum.Font.Gotham
+SubTitle.TextSize = 12
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = TitleBar
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
 CloseButton.Size = UDim2.new(0, 40, 0, 40)
-CloseButton.Position = UDim2.new(1, -40, 0, 0)
-CloseButton.BackgroundTransparency = 1
+CloseButton.Position = UDim2.new(1, -45, 0, 5)
+CloseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+CloseButton.BackgroundTransparency = 0.5
 CloseButton.Text = "✕"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.Font = Enum.Font.GothamBold
-CloseButton.TextSize = 18
+CloseButton.TextSize = 20
 CloseButton.Parent = TitleBar
 
--- Toggle Button (for showing/hiding GUI)
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Size = UDim2.new(0, 40, 0, 40)
-ToggleButton.Position = UDim2.new(0, 10, 0, 10)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-ToggleButton.Text = "⚙"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.TextSize = 20
-ToggleButton.Visible = false
-ToggleButton.Parent = ScreenGui
+local CloseButtonCorner = Instance.new("UICorner")
+CloseButtonCorner.CornerRadius = UDim.new(0, 8)
+CloseButtonCorner.Parent = CloseButton
 
 -- Content Frame
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Name = "ContentFrame"
-ContentFrame.Size = UDim2.new(1, -20, 1, -60)
-ContentFrame.Position = UDim2.new(0, 10, 0, 50)
+ContentFrame.Size = UDim2.new(1, -20, 1, -70)
+ContentFrame.Position = UDim2.new(0, 10, 0, 60)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
@@ -101,6 +150,7 @@ ScrollFrame.Size = UDim2.new(1, 0, 1, 0)
 ScrollFrame.BackgroundTransparency = 1
 ScrollFrame.ScrollBarThickness = 4
 ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 ScrollFrame.Parent = ContentFrame
 
 -- Create UI List Layout
@@ -108,104 +158,170 @@ local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Padding = UDim.new(0, 15)
 UIListLayout.Parent = ScrollFrame
 
--- Function to create modern setting elements
-local function createSlider(label, min, max, default, callback)
+-- Function to create number input with text box
+local function createNumberInput(label, min, max, default, callback)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 70)
+    container.Size = UDim2.new(1, 0, 0, 80)
     container.BackgroundTransparency = 1
     
     local labelText = Instance.new("TextLabel")
-    labelText.Size = UDim2.new(1, 0, 0, 20)
+    labelText.Size = UDim2.new(1, 0, 0, 25)
     labelText.BackgroundTransparency = 1
     labelText.Text = label
     labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    labelText.Font = Enum.Font.Gotham
+    labelText.Font = Enum.Font.GothamMedium
     labelText.TextSize = 14
     labelText.TextXAlignment = Enum.TextXAlignment.Left
     labelText.Parent = container
     
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Size = UDim2.new(1, 0, 0, 30)
-    sliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    sliderFrame.BorderSizePixel = 0
-    sliderFrame.Parent = container
+    local inputFrame = Instance.new("Frame")
+    inputFrame.Size = UDim2.new(1, 0, 0, 40)
+    inputFrame.Position = UDim2.new(0, 0, 0, 30)
+    inputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    inputFrame.BorderSizePixel = 0
+    inputFrame.Parent = container
     
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-    sliderFill.BorderSizePixel = 0
-    sliderFill.Parent = sliderFrame
+    local inputCorner = Instance.new("UICorner")
+    inputCorner.CornerRadius = UDim.new(0, 6)
+    inputCorner.Parent = inputFrame
     
-    local valueLabel = Instance.new("TextLabel")
-    valueLabel.Size = UDim2.new(1, 0, 0, 20)
-    valueLabel.Position = UDim2.new(0, 0, 0, 30)
-    valueLabel.BackgroundTransparency = 1
-    valueLabel.Text = tostring(default)
-    valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    valueLabel.Font = Enum.Font.GothamBold
-    valueLabel.TextSize = 14
-    valueLabel.Parent = container
+    local inputStroke = Instance.new("UIStroke")
+    inputStroke.Color = Color3.fromRGB(60, 60, 70)
+    inputStroke.Thickness = 2
+    inputStroke.Parent = inputFrame
     
-    local isDragging = false
+    local textBox = Instance.new("TextBox")
+    textBox.Name = "ValueInput"
+    textBox.Size = UDim2.new(1, -20, 1, 0)
+    textBox.Position = UDim2.new(0, 10, 0, 0)
+    textBox.BackgroundTransparency = 1
+    textBox.Text = tostring(default)
+    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.Font = Enum.Font.Gotham
+    textBox.TextSize = 16
+    textBox.TextXAlignment = Enum.TextXAlignment.Center
+    textBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+    textBox.ClearTextOnFocus = false
+    textBox.Parent = inputFrame
     
-    local function updateValue(x)
-        local relativeX = math.clamp((x - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
-        local value = math.floor(min + (max - min) * relativeX + 0.5)
-        sliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
-        valueLabel.Text = tostring(value)
-        callback(value)
+    -- Increment/Decrement buttons
+    local buttonContainer = Instance.new("Frame")
+    buttonContainer.Size = UDim2.new(0, 60, 1, 0)
+    buttonContainer.Position = UDim2.new(1, -65, 0, 0)
+    buttonContainer.BackgroundTransparency = 1
+    buttonContainer.Parent = inputFrame
+    
+    local minusButton = Instance.new("TextButton")
+    minusButton.Name = "MinusButton"
+    minusButton.Size = UDim2.new(0, 25, 1, -10)
+    minusButton.Position = UDim2.new(0, 0, 0, 5)
+    minusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    minusButton.Text = "-"
+    minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minusButton.Font = Enum.Font.GothamBold
+    minusButton.TextSize = 18
+    minusButton.Parent = buttonContainer
+    
+    local minusCorner = Instance.new("UICorner")
+    minusCorner.CornerRadius = UDim.new(0, 4)
+    minusCorner.Parent = minusButton
+    
+    local plusButton = Instance.new("TextButton")
+    plusButton.Name = "PlusButton"
+    plusButton.Size = UDim2.new(0, 25, 1, -10)
+    plusButton.Position = UDim2.new(1, -25, 0, 5)
+    plusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    plusButton.Text = "+"
+    plusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    plusButton.Font = Enum.Font.GothamBold
+    plusButton.TextSize = 18
+    plusButton.Parent = buttonContainer
+    
+    local plusCorner = Instance.new("UICorner")
+    plusCorner.CornerRadius = UDim.new(0, 4)
+    plusCorner.Parent = plusButton
+    
+    -- Function to validate and update value
+    local function updateValue(newValue)
+        local num = tonumber(newValue)
+        if num then
+            num = math.clamp(num, min, max)
+            textBox.Text = tostring(num)
+            callback(num)
+        else
+            textBox.Text = tostring(default)
+        end
     end
     
-    sliderFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isDragging = true
-            updateValue(input.Position.X)
+    -- Text box events
+    textBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed or textBox.Text ~= "" then
+            updateValue(textBox.Text)
         end
     end)
     
-    sliderFrame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isDragging = false
+    textBox:GetPropertyChangedSignal("Text"):Connect(function()
+        if textBox:IsFocused() then
+            local text = textBox.Text
+            if text:match("^[0-9]*$") and #text <= 3 then
+                -- Allow only numbers
+            else
+                textBox.Text = text:gsub("[^0-9]", "")
+            end
         end
     end)
     
-    UserInputService.InputChanged:Connect(function(input)
-        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateValue(input.Position.X)
-        end
+    -- Button events
+    minusButton.MouseButton1Click:Connect(function()
+        local current = tonumber(textBox.Text) or default
+        updateValue(current - 1)
+    end)
+    
+    plusButton.MouseButton1Click:Connect(function()
+        local current = tonumber(textBox.Text) or default
+        updateValue(current + 1)
     end)
     
     return container
 end
 
+-- Function to create modern toggle switch
 local function createToggle(label, default, callback)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 40)
+    container.Size = UDim2.new(1, 0, 0, 50)
     container.BackgroundTransparency = 1
     
     local labelText = Instance.new("TextLabel")
     labelText.Size = UDim2.new(0.7, 0, 1, 0)
     labelText.BackgroundTransparency = 1
     labelText.Text = label
-    labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    labelText.Font = Enum.Font.Gotham
+    labelText.TextColor3 = Color3.fromRGB(220, 220, 220)
+    labelText.Font = Enum.Font.GothamMedium
     labelText.TextSize = 14
     labelText.TextXAlignment = Enum.TextXAlignment.Left
     labelText.Parent = container
     
     local toggleFrame = Instance.new("Frame")
-    toggleFrame.Size = UDim2.new(0, 50, 0, 25)
-    toggleFrame.Position = UDim2.new(0.7, 0, 0.5, -12.5)
-    toggleFrame.BackgroundColor3 = default and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(60, 60, 70)
+    toggleFrame.Size = UDim2.new(0, 60, 0, 30)
+    toggleFrame.Position = UDim2.new(1, -65, 0.5, -15)
+    toggleFrame.BackgroundColor3 = default and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(50, 50, 55)
     toggleFrame.BorderSizePixel = 0
     toggleFrame.Parent = container
     
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(1, 0)
+    toggleCorner.Parent = toggleFrame
+    
     local toggleCircle = Instance.new("Frame")
-    toggleCircle.Size = UDim2.new(0, 21, 0, 21)
-    toggleCircle.Position = default and UDim2.new(1, -23, 0.5, -10.5) or UDim2.new(0, 2, 0.5, -10.5)
+    toggleCircle.Size = UDim2.new(0, 24, 0, 24)
+    toggleCircle.Position = default and UDim2.new(1, -25, 0.5, -12) or UDim2.new(0, 3, 0.5, -12)
     toggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     toggleCircle.BorderSizePixel = 0
     toggleCircle.Parent = toggleFrame
+    
+    local circleCorner = Instance.new("UICorner")
+    circleCorner.CornerRadius = UDim.new(1, 0)
+    circleCorner.Parent = toggleCircle
     
     toggleFrame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -216,12 +332,12 @@ local function createToggle(label, default, callback)
             
             if newValue then
                 local tween1 = TweenService:Create(toggleFrame, tweenInfo, {BackgroundColor3 = Color3.fromRGB(0, 120, 215)})
-                local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(1, -23, 0.5, -10.5)})
+                local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(1, -25, 0.5, -12)})
                 tween1:Play()
                 tween2:Play()
             else
-                local tween1 = TweenService:Create(toggleFrame, tweenInfo, {BackgroundColor3 = Color3.fromRGB(60, 60, 70)})
-                local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(0, 2, 0.5, -10.5)})
+                local tween1 = TweenService:Create(toggleFrame, tweenInfo, {BackgroundColor3 = Color3.fromRGB(50, 50, 55)})
+                local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(0, 3, 0.5, -12)})
                 tween1:Play()
                 tween2:Play()
             end
@@ -233,84 +349,220 @@ local function createToggle(label, default, callback)
     return container
 end
 
+-- Function to enable/disable GUI interactions
+local function setGUIEnabled(enabled)
+    GUIEnabled = enabled
+    for _, element in pairs(MainFrame:GetDescendants()) do
+        if element:IsA("TextButton") or element:IsA("TextBox") then
+            element.Active = enabled
+            if element:IsA("TextBox") then
+                if not enabled then
+                    element.TextEditable = false
+                    element.ClearTextOnFocus = true
+                else
+                    element.TextEditable = true
+                    element.ClearTextOnFocus = false
+                end
+            end
+        end
+    end
+end
+
 -- Player Settings Section
-local playerSection = Instance.new("TextLabel")
-playerSection.Size = UDim2.new(1, 0, 0, 30)
-playerSection.BackgroundTransparency = 1
-playerSection.Text = "PLAYER SETTINGS"
-playerSection.TextColor3 = Color3.fromRGB(0, 120, 215)
-playerSection.Font = Enum.Font.GothamBold
-playerSection.TextSize = 16
-playerSection.TextXAlignment = Enum.TextXAlignment.Left
+local playerSection = Instance.new("Frame")
+playerSection.Size = UDim2.new(1, 0, 0, 100)
+playerSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+playerSection.BorderSizePixel = 0
 playerSection.Parent = ScrollFrame
 
--- Player Hitbox Size Slider
-local playerSlider = createSlider("Player Hitbox Size", 1, 50, _G.PlayerHeadSize, function(value)
+local playerSectionCorner = Instance.new("UICorner")
+playerSectionCorner.CornerRadius = UDim.new(0, 8)
+playerSectionCorner.Parent = playerSection
+
+local playerSectionHeader = Instance.new("TextLabel")
+playerSectionHeader.Size = UDim2.new(1, -20, 0, 30)
+playerSectionHeader.Position = UDim2.new(0, 10, 0, 5)
+playerSectionHeader.BackgroundTransparency = 1
+playerSectionHeader.Text = "PLAYER HITBOX"
+playerSectionHeader.TextColor3 = Color3.fromRGB(0, 150, 255)
+playerSectionHeader.Font = Enum.Font.GothamBold
+playerSectionHeader.TextSize = 16
+playerSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+playerSectionHeader.Parent = playerSection
+
+-- Player Hitbox Size Input
+local playerInput = createNumberInput("Head Size (1-50)", 1, 50, _G.PlayerHeadSize, function(value)
     _G.PlayerHeadSize = value
 end)
-playerSlider.Parent = ScrollFrame
+playerInput.Position = UDim2.new(0, 10, 0, 35)
+playerInput.Parent = playerSection
 
 -- NPC Settings Section
-local npcSection = Instance.new("TextLabel")
-npcSection.Size = UDim2.new(1, 0, 0, 30)
-npcSection.BackgroundTransparency = 1
-npcSection.Text = "NPC SETTINGS"
-npcSection.TextColor3 = Color3.fromRGB(215, 120, 0)
-npcSection.Font = Enum.Font.GothamBold
-npcSection.TextSize = 16
-npcSection.TextXAlignment = Enum.TextXAlignment.Left
+local npcSection = Instance.new("Frame")
+npcSection.Size = UDim2.new(1, 0, 0, 100)
+npcSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+npcSection.BorderSizePixel = 0
 npcSection.Parent = ScrollFrame
 
--- NPC Hitbox Size Slider
-local npcSlider = createSlider("NPC Hitbox Size", 1, 50, _G.NPCHeadSize, function(value)
+local npcSectionCorner = Instance.new("UICorner")
+npcSectionCorner.CornerRadius = UDim.new(0, 8)
+npcSectionCorner.Parent = npcSection
+
+local npcSectionHeader = Instance.new("TextLabel")
+npcSectionHeader.Size = UDim2.new(1, -20, 0, 30)
+npcSectionHeader.Position = UDim2.new(0, 10, 0, 5)
+npcSectionHeader.BackgroundTransparency = 1
+npcSectionHeader.Text = "NPC HITBOX"
+npcSectionHeader.TextColor3 = Color3.fromRGB(255, 150, 0)
+npcSectionHeader.Font = Enum.Font.GothamBold
+npcSectionHeader.TextSize = 16
+npcSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+npcSectionHeader.Parent = npcSection
+
+-- NPC Hitbox Size Input
+local npcInput = createNumberInput("Head Size (1-50)", 1, 50, _G.NPCHeadSize, function(value)
     _G.NPCHeadSize = value
 end)
-npcSlider.Parent = ScrollFrame
+npcInput.Position = UDim2.new(0, 10, 0, 35)
+npcInput.Parent = npcSection
 
 -- Toggles Section
-local toggleSection = Instance.new("TextLabel")
-toggleSection.Size = UDim2.new(1, 0, 0, 30)
-toggleSection.BackgroundTransparency = 1
-toggleSection.Text = "TOGGLE SETTINGS"
-toggleSection.TextColor3 = Color3.fromRGB(120, 215, 0)
-toggleSection.Font = Enum.Font.GothamBold
-toggleSection.TextSize = 16
-toggleSection.TextXAlignment = Enum.TextXAlignment.Left
+local toggleSection = Instance.new("Frame")
+toggleSection.Size = UDim2.new(1, 0, 0, 280)
+toggleSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+toggleSection.BorderSizePixel = 0
 toggleSection.Parent = ScrollFrame
 
+local toggleSectionCorner = Instance.new("UICorner")
+toggleSectionCorner.CornerRadius = UDim.new(0, 8)
+toggleSectionCorner.Parent = toggleSection
+
+local toggleSectionHeader = Instance.new("TextLabel")
+toggleSectionHeader.Size = UDim2.new(1, -20, 0, 30)
+toggleSectionHeader.Position = UDim2.new(0, 10, 0, 5)
+toggleSectionHeader.BackgroundTransparency = 1
+toggleSectionHeader.Text = "SETTINGS"
+toggleSectionHeader.TextColor3 = Color3.fromRGB(0, 200, 100)
+toggleSectionHeader.Font = Enum.Font.GothamBold
+toggleSectionHeader.TextSize = 16
+toggleSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+toggleSectionHeader.Parent = toggleSection
+
+-- Create Toggles Container
+local togglesContainer = Instance.new("Frame")
+togglesContainer.Size = UDim2.new(1, -20, 0, 240)
+togglesContainer.Position = UDim2.new(0, 10, 0, 35)
+togglesContainer.BackgroundTransparency = 1
+togglesContainer.Parent = toggleSection
+
+local togglesLayout = Instance.new("UIListLayout")
+togglesLayout.Padding = UDim.new(0, 10)
+togglesLayout.Parent = togglesContainer
+
 -- Create Toggles
-local npcToggle = createToggle("Enable NPC Detection", _G.NPCEnabled, function(value)
+local masterToggle = createToggle("Enable Hitboxes", not _G.Disabled, function(value)
+    _G.Disabled = not value
+end)
+masterToggle.Parent = togglesContainer
+
+local npcToggle = createToggle("NPC Detection", _G.NPCEnabled, function(value)
     _G.NPCEnabled = value
 end)
-npcToggle.Parent = ScrollFrame
+npcToggle.Parent = togglesContainer
+
+local espToggle = createToggle("ESP Display", _G.ESPEnabled, function(value)
+    _G.ESPEnabled = value
+end)
+espToggle.Parent = togglesContainer
 
 local teamToggle = createToggle("Team Check", _G.TeamCheck, function(value)
     _G.TeamCheck = value
 end)
-teamToggle.Parent = ScrollFrame
+teamToggle.Parent = togglesContainer
 
-local espToggle = createToggle("Enable ESP", _G.ESPEnabled, function(value)
-    _G.ESPEnabled = value
-end)
-espToggle.Parent = ScrollFrame
+-- Reset Button Section
+local resetSection = Instance.new("Frame")
+resetSection.Size = UDim2.new(1, 0, 0, 70)
+resetSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+resetSection.BorderSizePixel = 0
+resetSection.Parent = ScrollFrame
 
--- Master Toggle
-local masterToggle = createToggle("Enable Hitbox", not _G.Disabled, function(value)
-    _G.Disabled = not value
+local resetSectionCorner = Instance.new("UICorner")
+resetSectionCorner.CornerRadius = UDim.new(0, 8)
+resetSectionCorner.Parent = resetSection
+
+local resetButton = Instance.new("TextButton")
+resetButton.Size = UDim2.new(1, -20, 0, 50)
+resetButton.Position = UDim2.new(0, 10, 0, 10)
+resetButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+resetButton.Text = "RESET TO DEFAULTS"
+resetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+resetButton.Font = Enum.Font.GothamBold
+resetButton.TextSize = 16
+resetButton.Parent = resetSection
+
+local resetButtonCorner = Instance.new("UICorner")
+resetButtonCorner.CornerRadius = UDim.new(0, 8)
+resetButtonCorner.Parent = resetButton
+
+resetButton.MouseButton1Click:Connect(function()
+    _G.PlayerHeadSize = 20
+    _G.NPCHeadSize = 20
+    _G.Disabled = false
+    _G.TeamCheck = true
+    _G.NPCEnabled = true
+    _G.ESPEnabled = true
+    
+    -- Update UI elements
+    playerInput:FindFirstChild("ValueInput", true).Text = "20"
+    npcInput:FindFirstChild("ValueInput", true).Text = "20"
+    
+    -- Refresh all toggles (you would need to implement this)
+    print("Settings reset to defaults!")
 end)
-masterToggle.Parent = ScrollFrame
 
 -- Update scroll frame size
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
 end)
+
+-- GUI Toggle Functions
+local function toggleGUI()
+    GUIVisible = not GUIVisible
+    
+    if GUIVisible then
+        -- Show GUI with animation
+        MainFrame.Visible = true
+        MainFrame.Position = UDim2.new(0, 10, 0.5, -250)
+        
+        local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 20, 0.5, -250)
+        })
+        tween:Play()
+        
+        setGUIEnabled(true)
+        ToggleButton.Text = "✕"
+    else
+        -- Hide GUI with animation
+        local tween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(0, 10, 0.5, -250)
+        })
+        tween:Play()
+        
+        tween.Completed:Connect(function()
+            MainFrame.Visible = false
+            setGUIEnabled(false)
+            ToggleButton.Text = "⚙"
+        end)
+    end
+end
 
 -- GUI Interaction Functions
 local isDragging = false
 local dragStart, frameStart
 
 TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and GUIEnabled then
         isDragging = true
         dragStart = input.Position
         frameStart = MainFrame.Position
@@ -324,22 +576,19 @@ TitleBar.InputEnded:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+    if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement and GUIEnabled then
         local delta = input.Position - dragStart
         MainFrame.Position = UDim2.new(frameStart.X.Scale, frameStart.X.Offset + delta.X,
                                       frameStart.Y.Scale, frameStart.Y.Offset + delta.Y)
     end
 end)
 
-CloseButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    ToggleButton.Visible = true
-end)
+-- Button Events
+CloseButton.MouseButton1Click:Connect(toggleGUI)
+ToggleButton.MouseButton1Click:Connect(toggleGUI)
 
-ToggleButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = true
-    ToggleButton.Visible = false
-end)
+-- Initialize GUI as disabled
+setGUIEnabled(false)
 
 -- Function to check if a player is an enemy
 local function isEnemy(player)
@@ -596,7 +845,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Raycast function for aimbot detection (optional integration)
+-- Raycast function for aimbot detection
 function RaycastForHitbox(origin, direction, length, ignoreList)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = ignoreList
@@ -612,7 +861,6 @@ function RaycastForHitbox(origin, direction, length, ignoreList)
             local head = character:FindFirstChild("Head")
             
             if humanoid and head and hit == head and humanoid.Health > 0 then
-                print("Hit detected on:", character.Name)
                 return character
             end
         end
@@ -624,9 +872,7 @@ end
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function(character)
         wait(1) -- Wait for character to fully load
-        if not _G.Disabled then
-            TrackedNPCs[character] = nil -- Ensure player characters aren't tracked as NPCs
-        end
+        TrackedNPCs[character] = nil -- Ensure player characters aren't tracked as NPCs
     end)
 end)
 
@@ -640,17 +886,18 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- Clean up on script removal
-game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.RightShift then
-        _G.Disabled = not _G.Disabled
-        masterToggle:FindFirstChild("ToggleFrame").InputBegan:Fire(input)
+-- Keybind to toggle GUI
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed then
+        if input.KeyCode == Enum.KeyCode.RightShift then
+            _G.Disabled = not _G.Disabled
+        elseif input.KeyCode == Enum.KeyCode.Insert then
+            toggleGUI()
+        end
     end
 end)
 
--- Initial GUI state
-ToggleButton.Visible = false
-
 print("Hitbox Configurator Loaded!")
+print("Press INSERT to toggle GUI")
 print("Press RightShift to toggle hitboxes")
-print("Click the gear icon to open settings")
+print("Toggle button is on the top right")
