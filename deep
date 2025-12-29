@@ -258,27 +258,17 @@ local function createNumberInput(label, min, max, default, callback)
         updateValue(current + 1)
     end)
     
-    -- Allow only numbers
-    textBox:GetPropertyChangedSignal("Text"):Connect(function()
-        if textBox:IsFocused() then
-            local text = textBox.Text
-            if not text:match("^[0-9]*$") then
-                textBox.Text = text:gsub("[^0-9]", "")
-            end
-        end
-    end)
-    
     return container
 end
 
--- Function to create modern toggle switch
-local function createToggle(label, default, callback)
+-- Function to create ON/OFF toggle buttons (simple and reliable)
+local function createToggleButton(label, default, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, 0, 0, 40)
     container.BackgroundTransparency = 1
     
     local labelText = Instance.new("TextLabel")
-    labelText.Size = UDim2.new(0.7, 0, 1, 0)
+    labelText.Size = UDim2.new(0.6, 0, 1, 0)
     labelText.BackgroundTransparency = 1
     labelText.Text = label
     labelText.TextColor3 = Color3.fromRGB(220, 220, 220)
@@ -287,54 +277,54 @@ local function createToggle(label, default, callback)
     labelText.TextXAlignment = Enum.TextXAlignment.Left
     labelText.Parent = container
     
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Size = UDim2.new(0, 50, 0, 25)
-    toggleFrame.Position = UDim2.new(1, -55, 0.5, -12.5)
-    toggleFrame.BackgroundColor3 = default and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(50, 50, 55)
-    toggleFrame.BorderSizePixel = 0
-    toggleFrame.Parent = container
+    -- Create the toggle button
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(0.35, 0, 0.7, 0)
+    toggleButton.Position = UDim2.new(0.65, 0, 0.15, 0)
+    toggleButton.BackgroundColor3 = default and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(200, 50, 50)
+    toggleButton.Text = default and "ON" or "OFF"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.TextSize = 13
+    toggleButton.Parent = container
     
     local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(1, 0)
-    toggleCorner.Parent = toggleFrame
+    toggleCorner.CornerRadius = UDim.new(0, 6)
+    toggleCorner.Parent = toggleButton
     
-    local toggleCircle = Instance.new("Frame")
-    toggleCircle.Size = UDim2.new(0, 20, 0, 20)
-    toggleCircle.Position = default and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
-    toggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    toggleCircle.BorderSizePixel = 0
-    toggleCircle.Parent = toggleFrame
+    local toggleStroke = Instance.new("UIStroke")
+    toggleStroke.Color = Color3.fromRGB(60, 60, 70)
+    toggleStroke.Thickness = 2
+    toggleStroke.Parent = toggleButton
     
-    local circleCorner = Instance.new("UICorner")
-    circleCorner.CornerRadius = UDim.new(1, 0)
-    circleCorner.Parent = toggleCircle
+    -- Store the current state
+    local state = default
     
-    local function updateToggle(newValue)
-        default = newValue
-        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        
-        if newValue then
-            local tween1 = TweenService:Create(toggleFrame, tweenInfo, {BackgroundColor3 = Color3.fromRGB(0, 120, 215)})
-            local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(1, -22, 0.5, -10)})
-            tween1:Play()
-            tween2:Play()
+    -- Function to update button appearance
+    local function updateButton()
+        if state then
+            toggleButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+            toggleButton.Text = "ON"
         else
-            local tween1 = TweenService:Create(toggleFrame, tweenInfo, {BackgroundColor3 = Color3.fromRGB(50, 50, 55)})
-            local tween2 = TweenService:Create(toggleCircle, tweenInfo, {Position = UDim2.new(0, 3, 0.5, -10)})
-            tween1:Play()
-            tween2:Play()
+            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            toggleButton.Text = "OFF"
         end
-        
-        callback(newValue)
     end
     
-    toggleFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            updateToggle(not default)
-        end
+    -- Initialize button
+    updateButton()
+    
+    -- Button click event
+    toggleButton.MouseButton1Click:Connect(function()
+        state = not state
+        updateButton()
+        callback(state)
     end)
     
-    return container
+    return container, function(newState)
+        state = newState
+        updateButton()
+    end
 end
 
 -- Player Settings Section
@@ -436,26 +426,33 @@ local togglesLayout = Instance.new("UIListLayout")
 togglesLayout.Padding = UDim.new(0, 8)
 togglesLayout.Parent = togglesContainer
 
+-- Store toggle update functions
+local toggleUpdateFunctions = {}
+
 -- Create Toggles
-local masterToggle = createToggle("Enable Hitboxes", not _G.Disabled, function(value)
+local masterToggle, updateMasterToggle = createToggleButton("Enable Hitboxes", not _G.Disabled, function(value)
     _G.Disabled = not value
 end)
 masterToggle.Parent = togglesContainer
+toggleUpdateFunctions["Enable Hitboxes"] = updateMasterToggle
 
-local npcToggle = createToggle("NPC Detection", _G.NPCEnabled, function(value)
+local npcToggle, updateNPCToggle = createToggleButton("NPC Detection", _G.NPCEnabled, function(value)
     _G.NPCEnabled = value
 end)
 npcToggle.Parent = togglesContainer
+toggleUpdateFunctions["NPC Detection"] = updateNPCToggle
 
-local espToggle = createToggle("ESP Display", _G.ESPEnabled, function(value)
+local espToggle, updateESPToggle = createToggleButton("ESP Display", _G.ESPEnabled, function(value)
     _G.ESPEnabled = value
 end)
 espToggle.Parent = togglesContainer
+toggleUpdateFunctions["ESP Display"] = updateESPToggle
 
-local teamToggle = createToggle("Team Check", _G.TeamCheck, function(value)
+local teamToggle, updateTeamToggle = createToggleButton("Team Check", _G.TeamCheck, function(value)
     _G.TeamCheck = value
 end)
 teamToggle.Parent = togglesContainer
+toggleUpdateFunctions["Team Check"] = updateTeamToggle
 
 -- Reset Button Section
 local resetSection = Instance.new("Frame")
@@ -492,34 +489,23 @@ resetButton.MouseButton1Click:Connect(function()
     _G.NPCEnabled = true
     _G.ESPEnabled = true
     
-    -- Update UI elements
-    playerInput:FindFirstChild("ValueInput", true).Text = "20"
-    npcInput:FindFirstChild("ValueInput", true).Text = "20"
+    -- Update number inputs
+    local playerTextBox = playerInput:FindFirstChild("ValueInput", true)
+    local npcTextBox = npcInput:FindFirstChild("ValueInput", true)
     
-    -- Update toggles visually
-    for _, toggle in pairs(togglesContainer:GetChildren()) do
-        if toggle:IsA("Frame") then
-            local toggleFrame = toggle:FindFirstChild("Frame")
-            if toggleFrame then
-                local label = toggle:FindFirstChild("TextLabel")
-                if label then
-                    if label.Text == "Enable Hitboxes" then
-                        toggleFrame.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-                        toggleFrame:FindFirstChild("Frame").Position = UDim2.new(1, -22, 0.5, -10)
-                    elseif label.Text == "NPC Detection" then
-                        toggleFrame.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-                        toggleFrame:FindFirstChild("Frame").Position = UDim2.new(1, -22, 0.5, -10)
-                    elseif label.Text == "ESP Display" then
-                        toggleFrame.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-                        toggleFrame:FindFirstChild("Frame").Position = UDim2.new(1, -22, 0.5, -10)
-                    elseif label.Text == "Team Check" then
-                        toggleFrame.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-                        toggleFrame:FindFirstChild("Frame").Position = UDim2.new(1, -22, 0.5, -10)
-                    end
-                end
-            end
-        end
+    if playerTextBox then
+        playerTextBox.Text = "20"
     end
+    
+    if npcTextBox then
+        npcTextBox.Text = "20"
+    end
+    
+    -- Update toggle buttons
+    toggleUpdateFunctions["Enable Hitboxes"](true)
+    toggleUpdateFunctions["NPC Detection"](true)
+    toggleUpdateFunctions["ESP Display"](true)
+    toggleUpdateFunctions["Team Check"](true)
     
     print("Settings reset to defaults!")
 end)
@@ -989,6 +975,11 @@ UserInputService.InputBegan:Connect(function(input, processed)
     if not processed then
         if input.KeyCode == Enum.KeyCode.RightShift then
             _G.Disabled = not _G.Disabled
+            
+            -- Update the toggle button
+            if toggleUpdateFunctions["Enable Hitboxes"] then
+                toggleUpdateFunctions["Enable Hitboxes"](not _G.Disabled)
+            end
         elseif input.KeyCode == Enum.KeyCode.Insert then
             toggleGUI()
         end
