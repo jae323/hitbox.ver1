@@ -13,6 +13,15 @@ _G.TeamCheck = true
 _G.NPCEnabled = true
 _G.ESPEnabled = true
 
+-- Aimbot Settings
+_G.AimbotEnabled = false
+_G.AimbotFOV = 100
+_G.AimbotSmoothness = 0.6
+_G.WallCheck = true
+_G.AimbotTeamCheck = true
+_G.AimbotHeightOffset = 2.0
+_G.AimbotTargetPart = "Head"
+
 -- ESP Settings
 _G.ESPColor = Color3.fromRGB(255, 50, 50)
 _G.ESPTransparency = 0.3
@@ -27,6 +36,13 @@ local PlayerESPBoxes = {} -- Separate storage for player ESP
 local TrackedNPCs = {}
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+-- Aimbot Variables
+local AimbotTarget = nil
+local AimbotLocked = false
+local FOVCircle = nil
+local NPCsCache = {}
+local LastCacheUpdate = 0
 
 -- GUI State
 local GUIVisible = false
@@ -66,8 +82,8 @@ ButtonStroke.Parent = ToggleButton
 -- Main Frame (hidden initially)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 400) -- Smaller size
-MainFrame.Position = UDim2.new(0, 10, 0.5, -200)
+MainFrame.Size = UDim2.new(0, 320, 0, 500) -- Increased size for aimbot
+MainFrame.Position = UDim2.new(0, 10, 0.5, -250)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
@@ -107,7 +123,7 @@ Title.Name = "Title"
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "HITBOX CONFIG"
+Title.Text = "HITBOX & AIMBOT CONFIG"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
@@ -147,7 +163,7 @@ ScrollFrame.Size = UDim2.new(1, 0, 1, 0)
 ScrollFrame.BackgroundTransparency = 1
 ScrollFrame.ScrollBarThickness = 4
 ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 650)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 900)
 ScrollFrame.Active = true
 ScrollFrame.Selectable = true
 ScrollFrame.Parent = ContentFrame
@@ -327,6 +343,82 @@ local function createToggleButton(label, default, callback)
     end
 end
 
+-- Function to create dropdown for aimbot target part
+local function createDropdown(label, options, default, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 50)
+    container.BackgroundTransparency = 1
+    
+    local labelText = Instance.new("TextLabel")
+    labelText.Size = UDim2.new(1, 0, 0, 20)
+    labelText.BackgroundTransparency = 1
+    labelText.Text = label
+    labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    labelText.Font = Enum.Font.GothamMedium
+    labelText.TextSize = 13
+    labelText.TextXAlignment = Enum.TextXAlignment.Left
+    labelText.Parent = container
+    
+    local dropdownButton = Instance.new("TextButton")
+    dropdownButton.Size = UDim2.new(1, 0, 0, 25)
+    dropdownButton.Position = UDim2.new(0, 0, 0, 20)
+    dropdownButton.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    dropdownButton.Text = default
+    dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropdownButton.Font = Enum.Font.Gotham
+    dropdownButton.TextSize = 13
+    dropdownButton.Parent = container
+    
+    local dropdownCorner = Instance.new("UICorner")
+    dropdownCorner.CornerRadius = UDim.new(0, 6)
+    dropdownCorner.Parent = dropdownButton
+    
+    -- Dropdown frame
+    local dropdownFrame = Instance.new("Frame")
+    dropdownFrame.Size = UDim2.new(1, 0, 0, 0)
+    dropdownFrame.Position = UDim2.new(0, 0, 0, 50)
+    dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    dropdownFrame.Visible = false
+    dropdownFrame.ClipsDescendants = true
+    dropdownFrame.Parent = container
+    
+    local dropdownList = Instance.new("UIListLayout")
+    dropdownList.Parent = dropdownFrame
+    
+    -- Create option buttons
+    for _, option in ipairs(options) do
+        local optionButton = Instance.new("TextButton")
+        optionButton.Size = UDim2.new(1, 0, 0, 25)
+        optionButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+        optionButton.Text = option
+        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        optionButton.Font = Enum.Font.Gotham
+        optionButton.TextSize = 12
+        optionButton.Parent = dropdownFrame
+        
+        optionButton.MouseButton1Click:Connect(function()
+            dropdownButton.Text = option
+            dropdownFrame.Visible = false
+            container.Size = UDim2.new(1, 0, 0, 50)
+            callback(option)
+        end)
+    end
+    
+    -- Toggle dropdown
+    dropdownButton.MouseButton1Click:Connect(function()
+        dropdownFrame.Visible = not dropdownFrame.Visible
+        if dropdownFrame.Visible then
+            dropdownFrame.Size = UDim2.new(1, 0, 0, #options * 25)
+            container.Size = UDim2.new(1, 0, 0, 50 + (#options * 25))
+        else
+            dropdownFrame.Size = UDim2.new(1, 0, 0, 0)
+            container.Size = UDim2.new(1, 0, 0, 50)
+        end
+    end)
+    
+    return container
+end
+
 -- Player Settings Section
 local playerSection = Instance.new("Frame")
 playerSection.Size = UDim2.new(1, 0, 0, 80)
@@ -389,9 +481,101 @@ end)
 npcInput.Position = UDim2.new(0, 5, 0, 30)
 npcInput.Parent = npcSection
 
--- Toggles Section
+-- Aimbot Settings Section
+local aimbotSection = Instance.new("Frame")
+aimbotSection.Size = UDim2.new(1, 0, 0, 280)
+aimbotSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+aimbotSection.BorderSizePixel = 0
+aimbotSection.Active = true
+aimbotSection.Selectable = true
+aimbotSection.Parent = ScrollFrame
+
+local aimbotSectionCorner = Instance.new("UICorner")
+aimbotSectionCorner.CornerRadius = UDim.new(0, 8)
+aimbotSectionCorner.Parent = aimbotSection
+
+local aimbotSectionHeader = Instance.new("TextLabel")
+aimbotSectionHeader.Size = UDim2.new(1, -10, 0, 25)
+aimbotSectionHeader.Position = UDim2.new(0, 5, 0, 5)
+aimbotSectionHeader.BackgroundTransparency = 1
+aimbotSectionHeader.Text = "AIMBOT SETTINGS"
+aimbotSectionHeader.TextColor3 = Color3.fromRGB(255, 100, 100)
+aimbotSectionHeader.Font = Enum.Font.GothamBold
+aimbotSectionHeader.TextSize = 14
+aimbotSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+aimbotSectionHeader.Parent = aimbotSection
+
+-- Create Aimbot Settings Container
+local aimbotContainer = Instance.new("Frame")
+aimbotContainer.Size = UDim2.new(1, -10, 0, 245)
+aimbotContainer.Position = UDim2.new(0, 5, 0, 30)
+aimbotContainer.BackgroundTransparency = 1
+aimbotContainer.Active = true
+aimbotContainer.Selectable = true
+aimbotContainer.Parent = aimbotSection
+
+local aimbotLayout = Instance.new("UIListLayout")
+aimbotLayout.Padding = UDim.new(0, 5)
+aimbotLayout.Parent = aimbotContainer
+
+-- Store toggle update functions
+local toggleUpdateFunctions = {}
+
+-- Create Aimbot Toggles and Inputs
+local aimbotToggle, updateAimbotToggle = createToggleButton("Aimbot", _G.AimbotEnabled, function(value)
+    _G.AimbotEnabled = value
+    if value and not FOVCircle then
+        createFOVCircle()
+    elseif not value and FOVCircle then
+        FOVCircle:Remove()
+        FOVCircle = nil
+    end
+end)
+aimbotToggle.Parent = aimbotContainer
+toggleUpdateFunctions["Aimbot"] = updateAimbotToggle
+
+local wallCheckToggle, updateWallCheckToggle = createToggleButton("Wall Check", _G.WallCheck, function(value)
+    _G.WallCheck = value
+end)
+wallCheckToggle.Parent = aimbotContainer
+toggleUpdateFunctions["Wall Check"] = updateWallCheckToggle
+
+local aimbotTeamToggle, updateAimbotTeamToggle = createToggleButton("Aimbot Team Check", _G.AimbotTeamCheck, function(value)
+    _G.AimbotTeamCheck = value
+end)
+aimbotTeamToggle.Parent = aimbotContainer
+toggleUpdateFunctions["Aimbot Team Check"] = updateAimbotTeamToggle
+
+-- Aimbot FOV Input
+local fovInput = createNumberInput("Aimbot FOV (1-360)", 1, 360, _G.AimbotFOV, function(value)
+    _G.AimbotFOV = value
+    if FOVCircle then
+        FOVCircle.Radius = value
+    end
+end)
+fovInput.Parent = aimbotContainer
+
+-- Smooth Aim Input
+local smoothInput = createNumberInput("Smooth Aim (0.1-1.0)", 0.1, 1.0, _G.AimbotSmoothness, function(value)
+    _G.AimbotSmoothness = value
+end)
+smoothInput.Parent = aimbotContainer
+
+-- Height Offset Input
+local heightInput = createNumberInput("Height Offset (0-10)", 0, 10, _G.AimbotHeightOffset, function(value)
+    _G.AimbotHeightOffset = value
+end)
+heightInput.Parent = aimbotContainer
+
+-- Target Part Dropdown
+local partDropdown = createDropdown("Target Part", {"Head", "HumanoidRootPart", "UpperTorso"}, _G.AimbotTargetPart, function(value)
+    _G.AimbotTargetPart = value
+end)
+partDropdown.Parent = aimbotContainer
+
+-- Toggles Section (General Settings)
 local toggleSection = Instance.new("Frame")
-toggleSection.Size = UDim2.new(1, 0, 0, 200)
+toggleSection.Size = UDim2.new(1, 0, 0, 180)
 toggleSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 toggleSection.BorderSizePixel = 0
 toggleSection.Active = true
@@ -406,7 +590,7 @@ local toggleSectionHeader = Instance.new("TextLabel")
 toggleSectionHeader.Size = UDim2.new(1, -10, 0, 25)
 toggleSectionHeader.Position = UDim2.new(0, 5, 0, 5)
 toggleSectionHeader.BackgroundTransparency = 1
-toggleSectionHeader.Text = "SETTINGS"
+toggleSectionHeader.Text = "GENERAL SETTINGS"
 toggleSectionHeader.TextColor3 = Color3.fromRGB(0, 200, 100)
 toggleSectionHeader.Font = Enum.Font.GothamBold
 toggleSectionHeader.TextSize = 14
@@ -415,7 +599,7 @@ toggleSectionHeader.Parent = toggleSection
 
 -- Create Toggles Container
 local togglesContainer = Instance.new("Frame")
-togglesContainer.Size = UDim2.new(1, -10, 0, 165)
+togglesContainer.Size = UDim2.new(1, -10, 0, 145)
 togglesContainer.Position = UDim2.new(0, 5, 0, 30)
 togglesContainer.BackgroundTransparency = 1
 togglesContainer.Active = true
@@ -425,9 +609,6 @@ togglesContainer.Parent = toggleSection
 local togglesLayout = Instance.new("UIListLayout")
 togglesLayout.Padding = UDim.new(0, 8)
 togglesLayout.Parent = togglesContainer
-
--- Store toggle update functions
-local toggleUpdateFunctions = {}
 
 -- Create Toggles
 local masterToggle, updateMasterToggle = createToggleButton("Enable Hitboxes", not _G.Disabled, function(value)
@@ -489,16 +670,32 @@ resetButton.MouseButton1Click:Connect(function()
     _G.NPCEnabled = true
     _G.ESPEnabled = true
     
+    -- Aimbot defaults
+    _G.AimbotEnabled = false
+    _G.AimbotFOV = 100
+    _G.AimbotSmoothness = 0.6
+    _G.WallCheck = true
+    _G.AimbotTeamCheck = true
+    _G.AimbotHeightOffset = 2.0
+    _G.AimbotTargetPart = "Head"
+    
     -- Update number inputs
     local playerTextBox = playerInput:FindFirstChild("ValueInput", true)
     local npcTextBox = npcInput:FindFirstChild("ValueInput", true)
+    local fovTextBox = fovInput:FindFirstChild("ValueInput", true)
+    local smoothTextBox = smoothInput:FindFirstChild("ValueInput", true)
+    local heightTextBox = heightInput:FindFirstChild("ValueInput", true)
     
-    if playerTextBox then
-        playerTextBox.Text = "20"
-    end
+    if playerTextBox then playerTextBox.Text = "20" end
+    if npcTextBox then npcTextBox.Text = "20" end
+    if fovTextBox then fovTextBox.Text = "100" end
+    if smoothTextBox then smoothTextBox.Text = "0.6" end
+    if heightTextBox then heightTextBox.Text = "2.0" end
     
-    if npcTextBox then
-        npcTextBox.Text = "20"
+    -- Update dropdown
+    if partDropdown then
+        local dropdownButton = partDropdown:FindFirstChild("TextButton")
+        if dropdownButton then dropdownButton.Text = "Head" end
     end
     
     -- Update toggle buttons
@@ -506,6 +703,15 @@ resetButton.MouseButton1Click:Connect(function()
     toggleUpdateFunctions["NPC Detection"](true)
     toggleUpdateFunctions["ESP Display"](true)
     toggleUpdateFunctions["Team Check"](true)
+    toggleUpdateFunctions["Aimbot"](false)
+    toggleUpdateFunctions["Wall Check"](true)
+    toggleUpdateFunctions["Aimbot Team Check"](true)
+    
+    -- Remove FOV circle if it exists
+    if FOVCircle then
+        FOVCircle:Remove()
+        FOVCircle = nil
+    end
     
     print("Settings reset to defaults!")
 end)
@@ -522,10 +728,10 @@ local function toggleGUI()
     if GUIVisible then
         -- Show GUI with animation
         MainFrame.Visible = true
-        MainFrame.Position = UDim2.new(1, -290, 0.5, -200)
+        MainFrame.Position = UDim2.new(1, -330, 0.5, -250)
         
         local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1, -290, 0.5, -200)
+            Position = UDim2.new(1, -330, 0.5, -250)
         })
         tween:Play()
         
@@ -570,6 +776,13 @@ ToggleButton.MouseButton1Click:Connect(toggleGUI)
 -- Function to check if a player is an enemy
 local function isEnemy(player)
     if not _G.TeamCheck then return true end
+    if not LocalPlayer.Team or not player.Team then return true end
+    return LocalPlayer.Team ~= player.Team
+end
+
+-- Function to check if a player is an enemy for aimbot
+local function isAimbotEnemy(player)
+    if not _G.AimbotTeamCheck then return true end
     if not LocalPlayer.Team or not player.Team then return true end
     return LocalPlayer.Team ~= player.Team
 end
@@ -787,6 +1000,131 @@ local function findNPCs()
     return npcs
 end
 
+-- Aimbot Functions
+local function createFOVCircle()
+    if not FOVCircle then
+        FOVCircle = Drawing.new("Circle")
+        FOVCircle.Visible = true
+        FOVCircle.Thickness = 2
+        FOVCircle.Color = Color3.fromRGB(255, 100, 100)
+        FOVCircle.Transparency = 1
+        FOVCircle.Radius = _G.AimbotFOV
+        FOVCircle.Filled = false
+        FOVCircle.NumSides = 32
+    end
+    return FOVCircle
+end
+
+local function isWallCheckPassed(targetPart)
+    if not _G.WallCheck then return true end
+    
+    local origin = Camera.CFrame.Position
+    local targetPosition = targetPart.Position + Vector3.new(0, _G.AimbotHeightOffset, 0)
+    
+    local direction = (targetPosition - origin).Unit
+    local distance = (targetPosition - origin).Magnitude
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+    raycastParams.IgnoreWater = true
+    
+    local result = workspace:Raycast(origin, direction * distance, raycastParams)
+    
+    if result then
+        local hitParent = result.Instance:FindFirstAncestorOfClass("Model")
+        return hitParent and hitParent == targetPart.Parent
+    end
+    
+    return true
+end
+
+local function smoothAim(currentCFrame, targetPosition, smoothness)
+    local currentLook = currentCFrame.LookVector
+    local targetLook = (targetPosition - currentCFrame.Position).Unit
+    
+    -- Apply smooth aiming
+    local newLook = currentLook:Lerp(targetLook, smoothness)
+    
+    -- Return the new CFrame
+    return CFrame.new(currentCFrame.Position, currentCFrame.Position + newLook)
+end
+
+local function getAimbotTargets()
+    local targets = {}
+    local currentTime = tick()
+    
+    -- Cache NPCs for performance
+    if currentTime - LastCacheUpdate > 0.5 then
+        NPCsCache = findNPCs()
+        LastCacheUpdate = currentTime
+    end
+    
+    -- Add NPCs to targets
+    for _, npc in ipairs(NPCsCache) do
+        if npc and npc.Parent then
+            local humanoid = npc:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                table.insert(targets, {Model = npc, IsNPC = true})
+            end
+        end
+    end
+    
+    -- Add players to targets
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                if _G.AimbotTeamCheck then
+                    if isAimbotEnemy(player) then
+                        table.insert(targets, {Model = player.Character, IsNPC = false, Player = player})
+                    end
+                else
+                    table.insert(targets, {Model = player.Character, IsNPC = false, Player = player})
+                end
+            end
+        end
+    end
+    
+    return targets
+end
+
+local function getClosestTargetInFOV()
+    if not _G.AimbotEnabled then return nil end
+    
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local closestDist = _G.AimbotFOV
+    local closestTarget = nil
+    local closestPart = nil
+    local closestPosition = nil
+    
+    local targets = getAimbotTargets()
+    
+    for _, targetData in ipairs(targets) do
+        local model = targetData.Model
+        local targetPart = model:FindFirstChild(_G.AimbotTargetPart) or model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart")
+        
+        if targetPart then
+            local targetPosition = targetPart.Position + Vector3.new(0, _G.AimbotHeightOffset, 0)
+            local screenPos, onScreen = Camera:WorldToScreenPoint(targetPosition)
+            
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                if dist < closestDist then
+                    if isWallCheckPassed(targetPart) then
+                        closestDist = dist
+                        closestTarget = targetData
+                        closestPart = targetPart
+                        closestPosition = targetPosition
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestTarget, closestPart, closestPosition
+end
+
 -- Main hitbox adjustment function
 local function adjustHitbox(character, headSize, isNPC)
     pcall(function()
@@ -837,7 +1175,7 @@ local function adjustHitbox(character, headSize, isNPC)
     end)
 end
 
--- Main loop for hitbox adjustment
+-- Main loop for hitbox adjustment and aimbot
 RunService.RenderStepped:Connect(function()
     if not _G.Disabled then
         -- Process players
@@ -927,6 +1265,25 @@ RunService.RenderStepped:Connect(function()
             PlayerESPBoxes[character] = nil
         end
     end
+    
+    -- Aimbot processing
+    if _G.AimbotEnabled then
+        -- Update FOV circle position
+        if FOVCircle then
+            FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            FOVCircle.Radius = _G.AimbotFOV
+            FOVCircle.Visible = true
+        end
+        
+        -- Find and aim at closest target
+        local targetData, targetPart, targetPosition = getClosestTargetInFOV()
+        if targetData and targetPart and targetPosition then
+            local newCFrame = smoothAim(Camera.CFrame, targetPosition, _G.AimbotSmoothness)
+            Camera.CFrame = newCFrame
+        end
+    elseif FOVCircle then
+        FOVCircle.Visible = false
+    end
 end)
 
 -- Raycast function for aimbot detection
@@ -970,26 +1327,50 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- Keybind to toggle GUI
+-- Keybind to toggle GUI and features
 UserInputService.InputBegan:Connect(function(input, processed)
     if not processed then
         if input.KeyCode == Enum.KeyCode.RightShift then
             _G.Disabled = not _G.Disabled
-            
-            -- Update the toggle button
             if toggleUpdateFunctions["Enable Hitboxes"] then
                 toggleUpdateFunctions["Enable Hitboxes"](not _G.Disabled)
             end
         elseif input.KeyCode == Enum.KeyCode.Insert then
             toggleGUI()
+        elseif input.KeyCode == Enum.KeyCode.F1 then
+            _G.AimbotEnabled = not _G.AimbotEnabled
+            if toggleUpdateFunctions["Aimbot"] then
+                toggleUpdateFunctions["Aimbot"](_G.AimbotEnabled)
+            end
+            if _G.AimbotEnabled and not FOVCircle then
+                createFOVCircle()
+            elseif not _G.AimbotEnabled and FOVCircle then
+                FOVCircle:Remove()
+                FOVCircle = nil
+            end
+            print("Aimbot: " .. (_G.AimbotEnabled and "ON" or "OFF"))
+        elseif input.KeyCode == Enum.KeyCode.F2 then
+            _G.WallCheck = not _G.WallCheck
+            if toggleUpdateFunctions["Wall Check"] then
+                toggleUpdateFunctions["Wall Check"](_G.WallCheck)
+            end
+            print("Wall Check: " .. (_G.WallCheck and "ON" or "OFF"))
         end
     end
 end)
 
 -- Initialize
-print("Hitbox Configurator Loaded!")
+print("Hitbox & Aimbot Configurator Loaded!")
 print("Press INSERT to toggle GUI")
 print("Press RightShift to toggle hitboxes")
+print("Press F1 to toggle Aimbot")
+print("Press F2 to toggle Wall Check")
 print("Toggle button is on the top right")
 print("GUI starts hidden - click the gear icon to open it")
-print("Players now have separate ESP from NPCs!")
+print("Players have separate ESP from NPCs!")
+print("Aimbot features: Smooth Aim, Wall Check, Team Check, FOV Circle")
+
+-- Create FOV circle if aimbot is enabled on start
+if _G.AimbotEnabled then
+    createFOVCircle()
+end
