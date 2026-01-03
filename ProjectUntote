@@ -4,14 +4,19 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 -- Settings
 _G.NPCHeadSize = 20
 _G.Disabled = false
 _G.NPCEnabled = true
+_G.ESPEnabled = false
+_G.InstantInteractEnabled = false
+_G.ShowProgressBars = true -- Keep progress bars visible
 
--- Storage for NPC tracking
+-- Storage
 local TrackedNPCs = {}
+local NPCESPInstances = {}
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
@@ -24,7 +29,7 @@ ScreenGui.Name = "HitboxConfigGUI"
 ScreenGui.Parent = CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Top Right Toggle Button (visible initially)
+-- Top Right Toggle Button
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Size = UDim2.new(0, 40, 0, 40)
@@ -40,7 +45,6 @@ ToggleButton.ZIndex = 100
 ToggleButton.Visible = true
 ToggleButton.Parent = ScreenGui
 
--- Add hover effect to toggle button
 local ButtonCorner = Instance.new("UICorner")
 ButtonCorner.CornerRadius = UDim.new(0, 6)
 ButtonCorner.Parent = ToggleButton
@@ -50,11 +54,11 @@ ButtonStroke.Color = Color3.fromRGB(80, 80, 90)
 ButtonStroke.Thickness = 2
 ButtonStroke.Parent = ToggleButton
 
--- Main Frame (hidden initially)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 300) -- Smaller size since we removed aimbot
-MainFrame.Position = UDim2.new(0, 10, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 350, 0, 450)
+MainFrame.Position = UDim2.new(0, 10, 0.5, -225)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
@@ -64,12 +68,10 @@ MainFrame.Active = true
 MainFrame.Selectable = true
 MainFrame.Parent = ScreenGui
 
--- Frame Corner
 local FrameCorner = Instance.new("UICorner")
 FrameCorner.CornerRadius = UDim.new(0, 10)
 FrameCorner.Parent = MainFrame
 
--- Frame Stroke
 local FrameStroke = Instance.new("UIStroke")
 FrameStroke.Color = Color3.fromRGB(60, 60, 70)
 FrameStroke.Thickness = 2
@@ -120,28 +122,29 @@ CloseButtonCorner.Parent = CloseButton
 -- Content Frame
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Name = "ContentFrame"
-ContentFrame.Size = UDim2.new(1, -10, 1, -50)
-ContentFrame.Position = UDim2.new(0, 5, 0, 45)
+ContentFrame.Size = UDim2.new(1, -20, 1, -60)
+ContentFrame.Position = UDim2.new(0, 10, 0, 50)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Active = true
 ContentFrame.Selectable = true
 ContentFrame.Parent = MainFrame
 
--- Create scroll frame for settings
+-- Create scroll frame for settings with proper sizing
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Name = "ScrollFrame"
 ScrollFrame.Size = UDim2.new(1, 0, 1, 0)
 ScrollFrame.BackgroundTransparency = 1
-ScrollFrame.ScrollBarThickness = 4
-ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 400)
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 90)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+ScrollFrame.ScrollingEnabled = true
 ScrollFrame.Active = true
 ScrollFrame.Selectable = true
 ScrollFrame.Parent = ContentFrame
 
 -- Create UI List Layout
 local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.Padding = UDim.new(0, 15)
 UIListLayout.Parent = ScrollFrame
 
 -- Function to create number input with text box
@@ -161,15 +164,20 @@ local function createNumberInput(label, min, max, default, callback)
     labelText.Parent = container
     
     local inputFrame = Instance.new("Frame")
-    inputFrame.Size = UDim2.new(1, 0, 0, 35)
+    inputFrame.Size = UDim2.new(1, 0, 0, 40)
     inputFrame.Position = UDim2.new(0, 0, 0, 25)
     inputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
     inputFrame.BorderSizePixel = 0
     inputFrame.Parent = container
     
     local inputCorner = Instance.new("UICorner")
-    inputCorner.CornerRadius = UDim.new(0, 6)
+    inputCorner.CornerRadius = UDim.new(0, 8)
     inputCorner.Parent = inputFrame
+    
+    local inputStroke = Instance.new("UIStroke")
+    inputStroke.Color = Color3.fromRGB(60, 60, 70)
+    inputStroke.Thickness = 2
+    inputStroke.Parent = inputFrame
     
     local textBox = Instance.new("TextBox")
     textBox.Name = "ValueInput"
@@ -187,34 +195,34 @@ local function createNumberInput(label, min, max, default, callback)
     -- Increment/Decrement buttons
     local minusButton = Instance.new("TextButton")
     minusButton.Name = "MinusButton"
-    minusButton.Size = UDim2.new(0, 35, 1, 0)
+    minusButton.Size = UDim2.new(0, 40, 1, 0)
     minusButton.Position = UDim2.new(0, 0, 0, 0)
     minusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-    minusButton.BackgroundTransparency = 0.5
+    minusButton.BackgroundTransparency = 0.3
     minusButton.Text = "-"
     minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     minusButton.Font = Enum.Font.GothamBold
-    minusButton.TextSize = 16
+    minusButton.TextSize = 18
     minusButton.Parent = inputFrame
     
     local minusCorner = Instance.new("UICorner")
-    minusCorner.CornerRadius = UDim.new(0, 6)
+    minusCorner.CornerRadius = UDim.new(0, 8)
     minusCorner.Parent = minusButton
     
     local plusButton = Instance.new("TextButton")
     plusButton.Name = "PlusButton"
-    plusButton.Size = UDim2.new(0, 35, 1, 0)
-    plusButton.Position = UDim2.new(1, -35, 0, 0)
+    plusButton.Size = UDim2.new(0, 40, 1, 0)
+    plusButton.Position = UDim2.new(1, -40, 0, 0)
     plusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-    plusButton.BackgroundTransparency = 0.5
+    plusButton.BackgroundTransparency = 0.3
     plusButton.Text = "+"
     plusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     plusButton.Font = Enum.Font.GothamBold
-    plusButton.TextSize = 16
+    plusButton.TextSize = 18
     plusButton.Parent = inputFrame
     
     local plusCorner = Instance.new("UICorner")
-    plusCorner.CornerRadius = UDim.new(0, 6)
+    plusCorner.CornerRadius = UDim.new(0, 8)
     plusCorner.Parent = plusButton
     
     -- Function to validate and update value
@@ -248,10 +256,10 @@ local function createNumberInput(label, min, max, default, callback)
     return container
 end
 
--- Function to create ON/OFF toggle buttons (simple and reliable)
+-- Function to create ON/OFF toggle buttons
 local function createToggleButton(label, default, callback)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 40)
+    container.Size = UDim2.new(1, 0, 0, 45)
     container.BackgroundTransparency = 1
     
     local labelText = Instance.new("TextLabel")
@@ -260,7 +268,7 @@ local function createToggleButton(label, default, callback)
     labelText.Text = label
     labelText.TextColor3 = Color3.fromRGB(220, 220, 220)
     labelText.Font = Enum.Font.GothamMedium
-    labelText.TextSize = 13
+    labelText.TextSize = 14
     labelText.TextXAlignment = Enum.TextXAlignment.Left
     labelText.Parent = container
     
@@ -272,11 +280,11 @@ local function createToggleButton(label, default, callback)
     toggleButton.Text = default and "ON" or "OFF"
     toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     toggleButton.Font = Enum.Font.GothamBold
-    toggleButton.TextSize = 13
+    toggleButton.TextSize = 14
     toggleButton.Parent = container
     
     local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 6)
+    toggleCorner.CornerRadius = UDim.new(0, 8)
     toggleCorner.Parent = toggleButton
     
     local toggleStroke = Instance.new("UIStroke")
@@ -314,9 +322,288 @@ local function createToggleButton(label, default, callback)
     end
 end
 
+-- ESP Functions (NPC Only)
+local function createNPCESP(npc)
+    if NPCESPInstances[npc] then return end
+    
+    local espFolder = Instance.new("Folder")
+    espFolder.Name = "NPCESP_" .. tostring(npc):gsub("[^%w]", "")
+    espFolder.Parent = ScreenGui
+    NPCESPInstances[npc] = espFolder
+    
+    -- Name Tag
+    local nameTag = Instance.new("TextLabel")
+    nameTag.Name = "NameTag"
+    nameTag.Text = "NPC"
+    nameTag.TextColor3 = Color3.fromRGB(255, 150, 0)
+    nameTag.BackgroundTransparency = 1
+    nameTag.TextSize = 14
+    nameTag.Font = Enum.Font.GothamBold
+    nameTag.Size = UDim2.new(0, 100, 0, 20)
+    nameTag.Parent = espFolder
+    
+    -- Distance Text
+    local distanceTag = Instance.new("TextLabel")
+    distanceTag.Name = "DistanceTag"
+    distanceTag.TextColor3 = Color3.fromRGB(200, 200, 200)
+    distanceTag.BackgroundTransparency = 1
+    distanceTag.TextSize = 12
+    distanceTag.Font = Enum.Font.Gotham
+    distanceTag.Size = UDim2.new(0, 100, 0, 20)
+    distanceTag.Parent = espFolder
+    
+    -- Health Bar
+    local healthBarBG = Instance.new("Frame")
+    healthBarBG.Name = "HealthBarBG"
+    healthBarBG.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBarBG.Size = UDim2.new(0, 100, 0, 5)
+    healthBarBG.BorderSizePixel = 0
+    healthBarBG.Parent = espFolder
+    
+    local healthBarCorner = Instance.new("UICorner")
+    healthBarCorner.CornerRadius = UDim.new(0, 3)
+    healthBarCorner.Parent = healthBarBG
+    
+    local healthBar = Instance.new("Frame")
+    healthBar.Name = "HealthBar"
+    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    healthBar.Size = UDim2.new(1, 0, 1, 0)
+    healthBar.BorderSizePixel = 0
+    healthBar.Parent = healthBarBG
+    
+    local healthBarInnerCorner = Instance.new("UICorner")
+    healthBarInnerCorner.CornerRadius = UDim.new(0, 3)
+    healthBarInnerCorner.Parent = healthBar
+    
+    -- Box ESP
+    local box = Instance.new("Frame")
+    box.Name = "Box"
+    box.BackgroundTransparency = 1
+    box.BorderColor3 = Color3.fromRGB(255, 150, 0)
+    box.BorderSizePixel = 2
+    box.Parent = espFolder
+end
+
+local function removeNPCESP(npc)
+    if NPCESPInstances[npc] then
+        NPCESPInstances[npc]:Destroy()
+        NPCESPInstances[npc] = nil
+    end
+end
+
+local function updateNPCESP()
+    if not _G.ESPEnabled then return end
+    
+    for npc, _ in pairs(TrackedNPCs) do
+        if npc and npc.Parent then
+            local humanoid = npc:FindFirstChildOfClass("Humanoid")
+            local rootPart = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Torso") or npc:FindFirstChild("UpperTorso")
+            
+            if humanoid and rootPart and humanoid.Health > 0 then
+                if not NPCESPInstances[npc] then
+                    createNPCESP(npc)
+                end
+                
+                local esp = NPCESPInstances[npc]
+                if esp then
+                    local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                    
+                    if onScreen then
+                        -- Calculate box size
+                        local head = npc:FindFirstChild("Head")
+                        local boxSize = Vector2.new(60, 100)
+                        
+                        if head then
+                            local headPos = Camera:WorldToViewportPoint(head.Position)
+                            local rootPos = Camera:WorldToViewportPoint(rootPart.Position)
+                            boxSize = Vector2.new(
+                                math.max(40, math.abs(headPos.X - rootPos.X) * 3),
+                                math.max(80, math.abs(headPos.Y - rootPos.Y) * 5)
+                            )
+                        end
+                        
+                        -- Update ESP elements
+                        local nameTag = esp:FindFirstChild("NameTag")
+                        local distanceTag = esp:FindFirstChild("DistanceTag")
+                        local healthBarBG = esp:FindFirstChild("HealthBarBG")
+                        local healthBar = healthBarBG and healthBarBG:FindFirstChild("HealthBar")
+                        local box = esp:FindFirstChild("Box")
+                        
+                        if nameTag then
+                            nameTag.Position = UDim2.new(0, position.X - 50, 0, position.Y - 80)
+                            nameTag.Visible = true
+                        end
+                        
+                        if distanceTag then
+                            local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
+                            distanceTag.Text = string.format("%.0f studs", distance)
+                            distanceTag.Position = UDim2.new(0, position.X - 50, 0, position.Y - 60)
+                            distanceTag.Visible = true
+                        end
+                        
+                        if healthBar and humanoid then
+                            local healthPercent = humanoid.Health / humanoid.MaxHealth
+                            healthPercent = math.clamp(healthPercent, 0, 1)
+                            healthBar.Size = UDim2.new(healthPercent, 0, 1, 0)
+                            healthBar.BackgroundColor3 = Color3.fromRGB(
+                                255 * (1 - healthPercent),
+                                255 * healthPercent,
+                                0
+                            )
+                            if healthBarBG then
+                                healthBarBG.Position = UDim2.new(0, position.X - 50, 0, position.Y - 40)
+                                healthBarBG.Visible = true
+                            end
+                        end
+                        
+                        if box then
+                            box.Position = UDim2.new(0, position.X - boxSize.X/2, 0, position.Y - boxSize.Y/2)
+                            box.Size = UDim2.new(0, boxSize.X, 0, boxSize.Y)
+                            box.Visible = true
+                        end
+                    else
+                        -- Hide ESP if off-screen
+                        for _, child in pairs(esp:GetChildren()) do
+                            child.Visible = false
+                        end
+                    end
+                end
+            else
+                removeNPCESP(npc)
+            end
+        else
+            removeNPCESP(npc)
+        end
+    end
+end
+
+local function toggleESP(enabled)
+    _G.ESPEnabled = enabled
+    
+    if not enabled then
+        -- Remove all ESP instances
+        for npc, esp in pairs(NPCESPInstances) do
+            esp:Destroy()
+        end
+        NPCESPInstances = {}
+    end
+end
+
+-- INSTANT INTERACT FIXED VERSION - Keep prompts normal but trigger instantly
+local instantInteractConnections = {}
+local activePrompts = {}
+
+local function onPromptButtonHoldBegan(prompt)
+    if not _G.InstantInteractEnabled then return end
+    
+    -- Store the original hold duration
+    local originalHoldDuration = prompt.HoldDuration
+    
+    -- DON'T modify the prompt - keep it looking normal
+    -- Just trigger it immediately
+    fireproximityprompt(prompt)
+    
+    -- For long prompts, also simulate holding for the required time
+    -- This helps with server-side checks
+    if originalHoldDuration > 0.5 then
+        local promptId = tostring(prompt)
+        
+        -- Clear any existing task for this prompt
+        if activePrompts[promptId] then
+            activePrompts[promptId]:Disconnect()
+        end
+        
+        -- Create a new task to keep firing the prompt
+        local connection = RunService.Heartbeat:Connect(function()
+            if prompt and prompt.Parent then
+                fireproximityprompt(prompt)
+            else
+                connection:Disconnect()
+                activePrompts[promptId] = nil
+            end
+        end)
+        
+        activePrompts[promptId] = connection
+        
+        -- Stop after the original hold duration
+        task.delay(originalHoldDuration, function()
+            if connection then
+                connection:Disconnect()
+            end
+            activePrompts[promptId] = nil
+        end)
+    end
+end
+
+local function onPromptShown(prompt)
+    if not _G.InstantInteractEnabled then return end
+    
+    -- Don't modify the prompt properties - keep it looking normal
+    -- Only increase range slightly for convenience
+    prompt.MaxActivationDistance = math.max(prompt.MaxActivationDistance, 25)
+    
+    -- Don't auto-trigger by default - let the user press the button
+    -- The button press will trigger instantly
+end
+
+local function toggleInstantInteract(enabled)
+    _G.InstantInteractEnabled = enabled
+    
+    if enabled then
+        print("Instant Interact Enabled")
+        print("Prompts will appear normal but trigger instantly when you press the button")
+        
+        -- Make existing prompts have better range
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                obj.MaxActivationDistance = math.max(obj.MaxActivationDistance, 25)
+            end
+        end
+        
+        -- Connect to prompt events
+        local promptShown = ProximityPromptService.PromptShown:Connect(onPromptShown)
+        local promptBegan = ProximityPromptService.PromptButtonHoldBegan:Connect(onPromptButtonHoldBegan)
+        
+        -- Make new prompts have better range
+        local descendantAdded = workspace.DescendantAdded:Connect(function(obj)
+            if obj:IsA("ProximityPrompt") then
+                obj.MaxActivationDistance = math.max(obj.MaxActivationDistance, 25)
+            end
+        end)
+        
+        table.insert(instantInteractConnections, promptShown)
+        table.insert(instantInteractConnections, promptBegan)
+        table.insert(instantInteractConnections, descendantAdded)
+        
+        print("Ready! Press your interact button (usually E) near prompts to instantly trigger them")
+        
+    else
+        -- Disconnect all connections
+        for _, connection in ipairs(instantInteractConnections) do
+            connection:Disconnect()
+        end
+        instantInteractConnections = {}
+        
+        -- Stop all active prompt tasks
+        for promptId, connection in pairs(activePrompts) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+        activePrompts = {}
+        
+        print("Instant Interact Disabled")
+    end
+end
+
+-- Create GUI Sections
+
+-- Store toggle update functions
+local toggleUpdateFunctions = {}
+
 -- NPC Settings Section
 local npcSection = Instance.new("Frame")
-npcSection.Size = UDim2.new(1, 0, 0, 150) -- Increased for additional toggle
+npcSection.Size = UDim2.new(1, 0, 0, 170)
 npcSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 npcSection.BorderSizePixel = 0
 npcSection.Active = true
@@ -324,35 +611,121 @@ npcSection.Selectable = true
 npcSection.Parent = ScrollFrame
 
 local npcSectionCorner = Instance.new("UICorner")
-npcSectionCorner.CornerRadius = UDim.new(0, 8)
+npcSectionCorner.CornerRadius = UDim.new(0, 10)
 npcSectionCorner.Parent = npcSection
 
+local npcSectionStroke = Instance.new("UIStroke")
+npcSectionStroke.Color = Color3.fromRGB(60, 60, 70)
+npcSectionStroke.Thickness = 2
+npcSectionStroke.Parent = npcSection
+
 local npcSectionHeader = Instance.new("TextLabel")
-npcSectionHeader.Size = UDim2.new(1, -10, 0, 25)
-npcSectionHeader.Position = UDim2.new(0, 5, 0, 5)
+npcSectionHeader.Size = UDim2.new(1, -20, 0, 30)
+npcSectionHeader.Position = UDim2.new(0, 10, 0, 5)
 npcSectionHeader.BackgroundTransparency = 1
 npcSectionHeader.Text = "NPC HITBOX SETTINGS"
 npcSectionHeader.TextColor3 = Color3.fromRGB(255, 150, 0)
 npcSectionHeader.Font = Enum.Font.GothamBold
-npcSectionHeader.TextSize = 14
+npcSectionHeader.TextSize = 15
 npcSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
 npcSectionHeader.Parent = npcSection
 
 -- Create NPC Settings Container
 local npcContainer = Instance.new("Frame")
-npcContainer.Size = UDim2.new(1, -10, 0, 115)
-npcContainer.Position = UDim2.new(0, 5, 0, 30)
+npcContainer.Size = UDim2.new(1, -20, 0, 130)
+npcContainer.Position = UDim2.new(0, 10, 0, 35)
 npcContainer.BackgroundTransparency = 1
 npcContainer.Active = true
 npcContainer.Selectable = true
 npcContainer.Parent = npcSection
 
 local npcLayout = Instance.new("UIListLayout")
-npcLayout.Padding = UDim.new(0, 5)
+npcLayout.Padding = UDim.new(0, 10)
 npcLayout.Parent = npcContainer
 
--- Store toggle update functions
-local toggleUpdateFunctions = {}
+-- ESP Settings Section
+local espSection = Instance.new("Frame")
+espSection.Size = UDim2.new(1, 0, 0, 120)
+espSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+espSection.BorderSizePixel = 0
+espSection.Active = true
+espSection.Selectable = true
+espSection.Parent = ScrollFrame
+
+local espSectionCorner = Instance.new("UICorner")
+espSectionCorner.CornerRadius = UDim.new(0, 10)
+espSectionCorner.Parent = espSection
+
+local espSectionStroke = Instance.new("UIStroke")
+espSectionStroke.Color = Color3.fromRGB(60, 60, 70)
+espSectionStroke.Thickness = 2
+espSectionStroke.Parent = espSection
+
+local espSectionHeader = Instance.new("TextLabel")
+espSectionHeader.Size = UDim2.new(1, -20, 0, 30)
+espSectionHeader.Position = UDim2.new(0, 10, 0, 5)
+espSectionHeader.BackgroundTransparency = 1
+espSectionHeader.Text = "NPC ESP SETTINGS"
+espSectionHeader.TextColor3 = Color3.fromRGB(0, 200, 255)
+espSectionHeader.Font = Enum.Font.GothamBold
+espSectionHeader.TextSize = 15
+espSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+espSectionHeader.Parent = espSection
+
+-- Create ESP Settings Container
+local espContainer = Instance.new("Frame")
+espContainer.Size = UDim2.new(1, -20, 0, 80)
+espContainer.Position = UDim2.new(0, 10, 0, 35)
+espContainer.BackgroundTransparency = 1
+espContainer.Active = true
+espContainer.Selectable = true
+espContainer.Parent = espSection
+
+local espLayout = Instance.new("UIListLayout")
+espLayout.Padding = UDim.new(0, 10)
+espLayout.Parent = espContainer
+
+-- Instant Interact Section
+local interactSection = Instance.new("Frame")
+interactSection.Size = UDim2.new(1, 0, 0, 150)
+interactSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+interactSection.BorderSizePixel = 0
+interactSection.Active = true
+interactSection.Selectable = true
+interactSection.Parent = ScrollFrame
+
+local interactSectionCorner = Instance.new("UICorner")
+interactSectionCorner.CornerRadius = UDim.new(0, 10)
+interactSectionCorner.Parent = interactSection
+
+local interactSectionStroke = Instance.new("UIStroke")
+interactSectionStroke.Color = Color3.fromRGB(60, 60, 70)
+interactSectionStroke.Thickness = 2
+interactSectionStroke.Parent = interactSection
+
+local interactSectionHeader = Instance.new("TextLabel")
+interactSectionHeader.Size = UDim2.new(1, -20, 0, 30)
+interactSectionHeader.Position = UDim2.new(0, 10, 0, 5)
+interactSectionHeader.BackgroundTransparency = 1
+interactSectionHeader.Text = "INSTANT INTERACT"
+interactSectionHeader.TextColor3 = Color3.fromRGB(100, 255, 100)
+interactSectionHeader.Font = Enum.Font.GothamBold
+interactSectionHeader.TextSize = 15
+interactSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+interactSectionHeader.Parent = interactSection
+
+-- Create Interact Settings Container
+local interactContainer = Instance.new("Frame")
+interactContainer.Size = UDim2.new(1, -20, 0, 110)
+interactContainer.Position = UDim2.new(0, 10, 0, 35)
+interactContainer.BackgroundTransparency = 1
+interactContainer.Active = true
+interactContainer.Selectable = true
+interactContainer.Parent = interactSection
+
+local interactLayout = Instance.new("UIListLayout")
+interactLayout.Padding = UDim.new(0, 10)
+interactLayout.Parent = interactContainer
 
 -- NPC Hitbox Size Input
 local npcInput = createNumberInput("Head Size (1-50)", 1, 50, _G.NPCHeadSize, function(value)
@@ -363,6 +736,10 @@ npcInput.Parent = npcContainer
 -- NPC Detection Toggle
 local npcToggle, updateNPCToggle = createToggleButton("NPC Detection", _G.NPCEnabled, function(value)
     _G.NPCEnabled = value
+    if not value then
+        toggleESP(false)
+        toggleUpdateFunctions["NPC ESP"](false)
+    end
 end)
 npcToggle.Parent = npcContainer
 toggleUpdateFunctions["NPC Detection"] = updateNPCToggle
@@ -374,9 +751,64 @@ end)
 masterToggle.Parent = npcContainer
 toggleUpdateFunctions["Enable Hitboxes"] = updateMasterToggle
 
+-- ESP Toggle
+local espToggle, updateESPToggle = createToggleButton("NPC ESP", _G.ESPEnabled, function(value)
+    toggleESP(value)
+end)
+espToggle.Parent = espContainer
+toggleUpdateFunctions["NPC ESP"] = updateESPToggle
+
+-- Instant Interact Toggle
+local interactToggle, updateInteractToggle = createToggleButton("Instant Interact", _G.InstantInteractEnabled, function(value)
+    toggleInstantInteract(value)
+end)
+interactToggle.Parent = interactContainer
+toggleUpdateFunctions["Instant Interact"] = updateInteractToggle
+
+-- Info Section
+local infoSection = Instance.new("Frame")
+infoSection.Size = UDim2.new(1, 0, 0, 140)
+infoSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+infoSection.BorderSizePixel = 0
+infoSection.Active = true
+infoSection.Selectable = true
+infoSection.Parent = ScrollFrame
+
+local infoSectionCorner = Instance.new("UICorner")
+infoSectionCorner.CornerRadius = UDim.new(0, 10)
+infoSectionCorner.Parent = infoSection
+
+local infoSectionStroke = Instance.new("UIStroke")
+infoSectionStroke.Color = Color3.fromRGB(60, 60, 70)
+infoSectionStroke.Thickness = 2
+infoSectionStroke.Parent = infoSection
+
+local infoSectionHeader = Instance.new("TextLabel")
+infoSectionHeader.Size = UDim2.new(1, -20, 0, 30)
+infoSectionHeader.Position = UDim2.new(0, 10, 0, 5)
+infoSectionHeader.BackgroundTransparency = 1
+infoSectionHeader.Text = "CONTROLS & INFO"
+infoSectionHeader.TextColor3 = Color3.fromRGB(255, 255, 200)
+infoSectionHeader.Font = Enum.Font.GothamBold
+infoSectionHeader.TextSize = 15
+infoSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+infoSectionHeader.Parent = infoSection
+
+local infoText = Instance.new("TextLabel")
+infoText.Size = UDim2.new(1, -20, 0, 100)
+infoText.Position = UDim2.new(0, 10, 0, 35)
+infoText.BackgroundTransparency = 1
+infoText.Text = "INSERT: Toggle GUI\nRIGHT SHIFT: Toggle All\nMouse Wheel: Scroll GUI\n\nInstant Interact:\n• Press E (or your button)\n• Progress bars appear normal\n• Instantly triggers\n• Works for all prompts"
+infoText.TextColor3 = Color3.fromRGB(200, 200, 200)
+infoText.Font = Enum.Font.Gotham
+infoText.TextSize = 12
+infoText.TextXAlignment = Enum.TextXAlignment.Left
+infoText.TextYAlignment = Enum.TextYAlignment.Top
+infoText.Parent = infoSection
+
 -- Reset Button Section
 local resetSection = Instance.new("Frame")
-resetSection.Size = UDim2.new(1, 0, 0, 60)
+resetSection.Size = UDim2.new(1, 0, 0, 70)
 resetSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 resetSection.BorderSizePixel = 0
 resetSection.Active = true
@@ -384,12 +816,17 @@ resetSection.Selectable = true
 resetSection.Parent = ScrollFrame
 
 local resetSectionCorner = Instance.new("UICorner")
-resetSectionCorner.CornerRadius = UDim.new(0, 8)
+resetSectionCorner.CornerRadius = UDim.new(0, 10)
 resetSectionCorner.Parent = resetSection
 
+local resetSectionStroke = Instance.new("UIStroke")
+resetSectionStroke.Color = Color3.fromRGB(60, 60, 70)
+resetSectionStroke.Thickness = 2
+resetSectionStroke.Parent = resetSection
+
 local resetButton = Instance.new("TextButton")
-resetButton.Size = UDim2.new(1, -10, 0, 40)
-resetButton.Position = UDim2.new(0, 5, 0, 10)
+resetButton.Size = UDim2.new(1, -20, 0, 45)
+resetButton.Position = UDim2.new(0, 10, 0, 12)
 resetButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 resetButton.Text = "RESET TO DEFAULTS"
 resetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -398,13 +835,20 @@ resetButton.TextSize = 14
 resetButton.Parent = resetSection
 
 local resetButtonCorner = Instance.new("UICorner")
-resetButtonCorner.CornerRadius = UDim.new(0, 6)
+resetButtonCorner.CornerRadius = UDim.new(0, 8)
 resetButtonCorner.Parent = resetButton
+
+local resetButtonStroke = Instance.new("UIStroke")
+resetButtonStroke.Color = Color3.fromRGB(100, 30, 30)
+resetButtonStroke.Thickness = 2
+resetButtonStroke.Parent = resetButton
 
 resetButton.MouseButton1Click:Connect(function()
     _G.NPCHeadSize = 20
     _G.Disabled = false
     _G.NPCEnabled = true
+    _G.ESPEnabled = false
+    _G.InstantInteractEnabled = false
     
     -- Update number inputs
     local npcTextBox = npcInput:FindFirstChild("ValueInput", true)
@@ -413,13 +857,20 @@ resetButton.MouseButton1Click:Connect(function()
     -- Update toggle buttons
     toggleUpdateFunctions["Enable Hitboxes"](true)
     toggleUpdateFunctions["NPC Detection"](true)
+    toggleUpdateFunctions["NPC ESP"](false)
+    toggleUpdateFunctions["Instant Interact"](false)
+    
+    -- Apply changes
+    toggleESP(false)
+    toggleInstantInteract(false)
     
     print("Settings reset to defaults!")
 end)
 
--- Update scroll frame size
+-- Update scroll frame size dynamically
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+    local totalHeight = UIListLayout.AbsoluteContentSize.Y + 20
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
 end)
 
 -- GUI Toggle Functions
@@ -429,10 +880,10 @@ local function toggleGUI()
     if GUIVisible then
         -- Show GUI with animation
         MainFrame.Visible = true
-        MainFrame.Position = UDim2.new(1, -330, 0.5, -150)
+        MainFrame.Position = UDim2.new(1, -370, 0.5, -225)
         
         local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1, -330, 0.5, -150)
+            Position = UDim2.new(1, -370, 0.5, -225)
         })
         tween:Play()
         
@@ -480,7 +931,6 @@ local function findNPCs()
     
     local npcs = {}
     
-    -- Look for models with Humanoid that aren't player characters
     for _, model in ipairs(workspace:GetDescendants()) do
         if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") then
             local isPlayer = false
@@ -491,9 +941,17 @@ local function findNPCs()
                 end
             end
             
-            if not isPlayer and not TrackedNPCs[model] then
-                table.insert(npcs, model)
-                TrackedNPCs[model] = true
+            if not isPlayer then
+                local humanoid = model:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    if not TrackedNPCs[model] then
+                        table.insert(npcs, model)
+                        TrackedNPCs[model] = true
+                    end
+                else
+                    TrackedNPCs[model] = nil
+                    removeNPCESP(model)
+                end
             end
         end
     end
@@ -522,12 +980,13 @@ local function adjustNPCHitbox(character, headSize)
                 head.CanTouch = false
                 head.CanQuery = false
                 TrackedNPCs[character] = nil
+                removeNPCESP(character)
             end
         end
     end)
 end
 
--- Main loop for NPC hitbox adjustment
+-- Main loops
 RunService.RenderStepped:Connect(function()
     if not _G.Disabled then
         -- Process NPCs
@@ -538,10 +997,20 @@ RunService.RenderStepped:Connect(function()
             end
         end
         
+        -- Update NPC ESP
+        updateNPCESP()
+        
         -- Clean up NPC tracking for removed NPCs
         for character, _ in pairs(TrackedNPCs) do
             if not character.Parent then
                 TrackedNPCs[character] = nil
+                removeNPCESP(character)
+            else
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if not humanoid or humanoid.Health <= 0 then
+                    TrackedNPCs[character] = nil
+                    removeNPCESP(character)
+                end
             end
         end
     else
@@ -559,16 +1028,9 @@ RunService.RenderStepped:Connect(function()
                 end
             end
             TrackedNPCs[character] = nil
+            removeNPCESP(character)
         end
     end
-end)
-
--- Player added/removed handlers
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        wait(1) -- Wait for character to fully load
-        TrackedNPCs[character] = nil -- Ensure player characters aren't tracked as NPCs
-    end)
 end)
 
 -- Keybind to toggle GUI and master toggle
@@ -587,7 +1049,13 @@ end)
 
 -- Initialize
 print("NPC Hitbox Configurator Loaded!")
+print("Features: NPC Hitbox, NPC ESP, Instant Interact")
 print("Press INSERT to toggle GUI")
-print("Press RightShift to toggle hitboxes")
+print("Press RightShift to toggle all features")
 print("Toggle button is on the top right")
 print("GUI starts hidden - click the gear icon to open it")
+print("\nInstant Interact:")
+print("- Prompts appear NORMAL with progress bars")
+print("- Just press your interact button (usually E)")
+print("- Will instantly trigger when you press")
+print("- Works for short taps and long holds")
