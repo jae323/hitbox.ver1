@@ -12,11 +12,12 @@ _G.Disabled = false
 _G.NPCEnabled = true
 _G.ESPEnabled = false
 _G.InstantInteractEnabled = false
-_G.ShowProgressBars = true -- Keep progress bars visible
+_G.ShowProgressBars = true
 
 -- Storage
 local TrackedNPCs = {}
 local NPCESPInstances = {}
+local NPCBoxAdorns = {}
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
@@ -322,66 +323,127 @@ local function createToggleButton(label, default, callback)
     end
 end
 
--- ESP Functions (NPC Only)
-local function createNPCESP(npc)
+-- ========== IMPROVED NPC DETECTION SYSTEM ==========
+local function isNPC(model)
+    if not model:IsA("Model") then return false end
+    
+    -- Check if it's a player character
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character == model then
+            return false
+        end
+    end
+    
+    -- Check for humanoid
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return false end
+    
+    -- Check if it has character parts
+    local head = model:FindFirstChild("Head")
+    if not head then return false end
+    
+    -- Check for NPC indicators
+    if model:FindFirstChild("IsNPC") then return true end
+    if model.Name:lower():find("npc") then return true end
+    if model.Name:lower():find("enemy") then return true end
+    if model.Name:lower():find("boss") then return true end
+    if model.Name:lower():find("mob") then return true end
+    
+    -- Check if it has AI
+    local hasAI = model:FindFirstChild("AI") or model:FindFirstChild("AIController") or model:FindFirstChild("Path")
+    if hasAI then return true end
+    
+    -- Check for common NPC folders
+    local parent = model.Parent
+    while parent do
+        if parent.Name:lower():find("npc") or parent.Name:lower():find("enemy") or parent.Name:lower():find("boss") then
+            return true
+        end
+        parent = parent.Parent
+    end
+    
+    return true -- Assume any non-player character with humanoid is NPC
+end
+
+-- ========== ULTRA COMPACT MODERN ESP ==========
+local function createCompactESP(npc)
     if NPCESPInstances[npc] then return end
     
-    local espFolder = Instance.new("Folder")
-    espFolder.Name = "NPCESP_" .. tostring(npc):gsub("[^%w]", "")
-    espFolder.Parent = ScreenGui
-    NPCESPInstances[npc] = espFolder
+    -- Create ultra compact ESP container
+    local espContainer = Instance.new("Frame")
+    espContainer.Name = "CompactESP_" .. tostring(npc):gsub("[^%w]", "")
+    espContainer.BackgroundTransparency = 1
+    espContainer.Size = UDim2.new(0, 60, 0, 40) -- Very small container
+    espContainer.Parent = ScreenGui
+    NPCESPInstances[npc] = espContainer
     
-    -- Name Tag
-    local nameTag = Instance.new("TextLabel")
-    nameTag.Name = "NameTag"
-    nameTag.Text = "NPC"
-    nameTag.TextColor3 = Color3.fromRGB(255, 150, 0)
-    nameTag.BackgroundTransparency = 1
-    nameTag.TextSize = 14
-    nameTag.Font = Enum.Font.GothamBold
-    nameTag.Size = UDim2.new(0, 100, 0, 20)
-    nameTag.Parent = espFolder
+    -- Modern small name label
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "Name"
+    nameLabel.Text = npc.Name:sub(1, 8) -- Truncate name to 8 chars
+    nameLabel.TextColor3 = Color3.fromRGB(255, 150, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextSize = 10 -- Very small text
+    nameLabel.Font = Enum.Font.GothamSemibold
+    nameLabel.Size = UDim2.new(1, 0, 0, 12)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    nameLabel.Parent = espContainer
     
-    -- Distance Text
-    local distanceTag = Instance.new("TextLabel")
-    distanceTag.Name = "DistanceTag"
-    distanceTag.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distanceTag.BackgroundTransparency = 1
-    distanceTag.TextSize = 12
-    distanceTag.Font = Enum.Font.Gotham
-    distanceTag.Size = UDim2.new(0, 100, 0, 20)
-    distanceTag.Parent = espFolder
-    
-    -- Health Bar
+    -- Mini health bar with outline
     local healthBarBG = Instance.new("Frame")
-    healthBarBG.Name = "HealthBarBG"
-    healthBarBG.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    healthBarBG.Size = UDim2.new(0, 100, 0, 5)
+    healthBarBG.Name = "HealthBG"
+    healthBarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    healthBarBG.Size = UDim2.new(1, 0, 0, 4) -- Very thin
+    healthBarBG.Position = UDim2.new(0, 0, 0, 15)
     healthBarBG.BorderSizePixel = 0
-    healthBarBG.Parent = espFolder
+    healthBarBG.Parent = espContainer
     
     local healthBarCorner = Instance.new("UICorner")
-    healthBarCorner.CornerRadius = UDim.new(0, 3)
+    healthBarCorner.CornerRadius = UDim.new(1, 0)
     healthBarCorner.Parent = healthBarBG
     
     local healthBar = Instance.new("Frame")
-    healthBar.Name = "HealthBar"
+    healthBar.Name = "Health"
     healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
     healthBar.Size = UDim2.new(1, 0, 1, 0)
     healthBar.BorderSizePixel = 0
     healthBar.Parent = healthBarBG
     
     local healthBarInnerCorner = Instance.new("UICorner")
-    healthBarInnerCorner.CornerRadius = UDim.new(0, 3)
+    healthBarInnerCorner.CornerRadius = UDim.new(1, 0)
     healthBarInnerCorner.Parent = healthBar
     
-    -- Box ESP
-    local box = Instance.new("Frame")
-    box.Name = "Box"
-    box.BackgroundTransparency = 1
-    box.BorderColor3 = Color3.fromRGB(255, 150, 0)
-    box.BorderSizePixel = 2
-    box.Parent = espFolder
+    -- Modern gradient for health
+    local healthGradient = Instance.new("UIGradient")
+    healthGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 50, 50)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 200, 50)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 255, 50))
+    })
+    healthGradient.Parent = healthBar
+    
+    -- Tiny distance indicator
+    local distanceLabel = Instance.new("TextLabel")
+    distanceLabel.Name = "Distance"
+    distanceLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.TextSize = 9 -- Even smaller
+    distanceLabel.Font = Enum.Font.Gotham
+    distanceLabel.Size = UDim2.new(1, 0, 0, 10)
+    distanceLabel.Position = UDim2.new(0, 0, 0, 21)
+    distanceLabel.Parent = espContainer
+    
+    -- Create subtle 3D box (smaller)
+    local boxAdorn = Instance.new("BoxHandleAdornment")
+    boxAdorn.Name = "MiniBox"
+    boxAdorn.Adornee = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Torso") or npc:FindFirstChild("UpperTorso")
+    boxAdorn.Size = Vector3.new(3, 5, 2) -- Smaller box
+    boxAdorn.Color3 = Color3.fromRGB(255, 150, 0)
+    boxAdorn.Transparency = 0.8
+    boxAdorn.AlwaysOnTop = true
+    boxAdorn.ZIndex = 1
+    boxAdorn.Parent = ScreenGui
+    NPCBoxAdorns[npc] = boxAdorn
 end
 
 local function removeNPCESP(npc)
@@ -389,86 +451,119 @@ local function removeNPCESP(npc)
         NPCESPInstances[npc]:Destroy()
         NPCESPInstances[npc] = nil
     end
+    
+    if NPCBoxAdorns[npc] then
+        NPCBoxAdorns[npc]:Destroy()
+        NPCBoxAdorns[npc] = nil
+    end
 end
 
-local function updateNPCESP()
+-- ========== SMARTER ESP UPDATER ==========
+local function updateCompactESP()
     if not _G.ESPEnabled then return end
+    
+    local currentTime = tick()
     
     for npc, _ in pairs(TrackedNPCs) do
         if npc and npc.Parent then
             local humanoid = npc:FindFirstChildOfClass("Humanoid")
             local rootPart = npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Torso") or npc:FindFirstChild("UpperTorso")
             
-            if humanoid and rootPart and humanoid.Health > 0 then
+            -- SMART DEATH DETECTION
+            local isDead = false
+            if humanoid then
+                -- Check multiple death indicators
+                isDead = humanoid.Health <= 0
+                
+                -- Check ragdoll state
+                local isRagdoll = false
+                for _, part in ipairs(npc:GetChildren()) do
+                    if part:IsA("BasePart") and part.Massless == false then
+                        -- Check if parts are falling (ragdoll)
+                        local velocity = part.AssemblyLinearVelocity.Magnitude
+                        if velocity > 5 then -- Parts moving = likely ragdoll
+                            isRagdoll = true
+                            break
+                        end
+                    end
+                end
+                
+                if isRagdoll and humanoid.Health <= 0 then
+                    isDead = true
+                end
+            end
+            
+            if not isDead and rootPart then
                 if not NPCESPInstances[npc] then
-                    createNPCESP(npc)
+                    createCompactESP(npc)
                 end
                 
                 local esp = NPCESPInstances[npc]
-                if esp then
-                    local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                local boxAdorn = NPCBoxAdorns[npc]
+                
+                if esp and boxAdorn then
+                    -- Update box adorner
+                    if boxAdorn.Adornee ~= rootPart then
+                        boxAdorn.Adornee = rootPart
+                    end
+                    
+                    -- Update box size based on distance
+                    local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
+                    local sizeMultiplier = math.clamp(30 / distance, 0.5, 2)
+                    boxAdorn.Size = Vector3.new(3 * sizeMultiplier, 5 * sizeMultiplier, 2)
+                    boxAdorn.CFrame = rootPart.CFrame
+                    
+                    -- Update ESP position
+                    local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 2.5, 0))
                     
                     if onScreen then
-                        -- Calculate box size
-                        local head = npc:FindFirstChild("Head")
-                        local boxSize = Vector2.new(60, 100)
-                        
-                        if head then
-                            local headPos = Camera:WorldToViewportPoint(head.Position)
-                            local rootPos = Camera:WorldToViewportPoint(rootPart.Position)
-                            boxSize = Vector2.new(
-                                math.max(40, math.abs(headPos.X - rootPos.X) * 3),
-                                math.max(80, math.abs(headPos.Y - rootPos.Y) * 5)
-                            )
-                        end
-                        
                         -- Update ESP elements
-                        local nameTag = esp:FindFirstChild("NameTag")
-                        local distanceTag = esp:FindFirstChild("DistanceTag")
-                        local healthBarBG = esp:FindFirstChild("HealthBarBG")
-                        local healthBar = healthBarBG and healthBarBG:FindFirstChild("HealthBar")
-                        local box = esp:FindFirstChild("Box")
+                        local nameLabel = esp:FindFirstChild("Name")
+                        local distanceLabel = esp:FindFirstChild("Distance")
+                        local healthBarBG = esp:FindFirstChild("HealthBG")
+                        local healthBar = healthBarBG and healthBarBG:FindFirstChild("Health")
                         
-                        if nameTag then
-                            nameTag.Position = UDim2.new(0, position.X - 50, 0, position.Y - 80)
-                            nameTag.Visible = true
+                        if nameLabel then
+                            nameLabel.Position = UDim2.new(0, position.X - 30, 0, position.Y - 40)
+                            nameLabel.Visible = true
                         end
                         
-                        if distanceTag then
-                            local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
-                            distanceTag.Text = string.format("%.0f studs", distance)
-                            distanceTag.Position = UDim2.new(0, position.X - 50, 0, position.Y - 60)
-                            distanceTag.Visible = true
+                        if distanceLabel then
+                            distanceLabel.Text = math.floor(distance) .. "st"
+                            distanceLabel.Position = UDim2.new(0, position.X - 30, 0, position.Y - 28)
+                            distanceLabel.Visible = true
                         end
                         
                         if healthBar and humanoid then
                             local healthPercent = humanoid.Health / humanoid.MaxHealth
                             healthPercent = math.clamp(healthPercent, 0, 1)
+                            
+                            -- Empty bar when dead (even with ragdoll)
+                            if humanoid.Health <= 0 then
+                                healthPercent = 0
+                            end
+                            
                             healthBar.Size = UDim2.new(healthPercent, 0, 1, 0)
-                            healthBar.BackgroundColor3 = Color3.fromRGB(
-                                255 * (1 - healthPercent),
-                                255 * healthPercent,
-                                0
-                            )
+                            
                             if healthBarBG then
-                                healthBarBG.Position = UDim2.new(0, position.X - 50, 0, position.Y - 40)
-                                healthBarBG.Visible = true
+                                healthBarBG.Position = UDim2.new(0, position.X - 30, 0, position.Y - 18)
+                                healthBarBG.Visible = healthPercent > 0 -- Hide completely when dead
                             end
                         end
                         
-                        if box then
-                            box.Position = UDim2.new(0, position.X - boxSize.X/2, 0, position.Y - boxSize.Y/2)
-                            box.Size = UDim2.new(0, boxSize.X, 0, boxSize.Y)
-                            box.Visible = true
-                        end
+                        -- Show/hide based on health
+                        esp.Visible = humanoid and humanoid.Health > 0
+                        boxAdorn.Visible = humanoid and humanoid.Health > 0
+                        
                     else
-                        -- Hide ESP if off-screen
-                        for _, child in pairs(esp:GetChildren()) do
-                            child.Visible = false
+                        esp.Visible = false
+                        if boxAdorn then
+                            boxAdorn.Visible = false
                         end
                     end
                 end
             else
+                -- NPC is dead, remove ESP
                 removeNPCESP(npc)
             end
         else
@@ -481,39 +576,105 @@ local function toggleESP(enabled)
     _G.ESPEnabled = enabled
     
     if not enabled then
-        -- Remove all ESP instances
         for npc, esp in pairs(NPCESPInstances) do
             esp:Destroy()
         end
         NPCESPInstances = {}
+        
+        for npc, adorn in pairs(NPCBoxAdorns) do
+            adorn:Destroy()
+        end
+        NPCBoxAdorns = {}
     end
 end
 
--- INSTANT INTERACT FIXED VERSION - Keep prompts normal but trigger instantly
+-- ========== IMPROVED HITBOX SYSTEM ==========
+local function adjustNPCHitbox(character, headSize)
+    pcall(function()
+        local head = character:FindFirstChild("Head")
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        if head and humanoid then
+            -- Check if NPC is alive (smarter check)
+            local isAlive = humanoid.Health > 0
+            
+            -- Check for ragdoll state
+            local isRagdoll = false
+            if humanoid.Health <= 0 then
+                -- Check if parts are falling
+                for _, part in ipairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local velocity = part.AssemblyLinearVelocity.Magnitude
+                        if velocity > 2 then
+                            isRagdoll = true
+                            break
+                        end
+                    end
+                end
+            end
+            
+            if isAlive and not isRagdoll then
+                -- Adjust hitbox when alive
+                head.Size = Vector3.new(headSize, headSize, headSize)
+                head.Transparency = 0.6
+                head.BrickColor = BrickColor.new("Bright orange")
+                head.Material = Enum.Material.Neon
+                head.CanCollide = false
+                head.Massless = true
+                
+                -- Adjust torso too
+                local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+                if torso then
+                    torso.Size = Vector3.new(headSize * 1.4, headSize * 1.1, headSize * 0.7)
+                    torso.Transparency = 0.7
+                    torso.BrickColor = BrickColor.new("Bright orange")
+                    torso.Material = Enum.Material.Neon
+                    torso.CanCollide = false
+                    torso.Massless = true
+                end
+            else
+                -- Reset when dead/ragdoll
+                head.Size = Vector3.new(2, 1, 1)
+                head.Transparency = 0
+                head.BrickColor = BrickColor.new("Medium stone grey")
+                head.Material = Enum.Material.Plastic
+                head.CanCollide = true
+                head.Massless = false
+                
+                local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+                if torso then
+                    torso.Size = Vector3.new(2, 2, 1)
+                    torso.Transparency = 0
+                    torso.BrickColor = BrickColor.new("Medium stone grey")
+                    torso.Material = Enum.Material.Plastic
+                    torso.CanCollide = true
+                    torso.Massless = false
+                end
+                
+                TrackedNPCs[character] = nil
+                removeNPCESP(character)
+            end
+        end
+    end)
+end
+
+-- Instant Interact System (unchanged)
 local instantInteractConnections = {}
 local activePrompts = {}
 
 local function onPromptButtonHoldBegan(prompt)
     if not _G.InstantInteractEnabled then return end
     
-    -- Store the original hold duration
     local originalHoldDuration = prompt.HoldDuration
-    
-    -- DON'T modify the prompt - keep it looking normal
-    -- Just trigger it immediately
     fireproximityprompt(prompt)
     
-    -- For long prompts, also simulate holding for the required time
-    -- This helps with server-side checks
     if originalHoldDuration > 0.5 then
         local promptId = tostring(prompt)
         
-        -- Clear any existing task for this prompt
         if activePrompts[promptId] then
             activePrompts[promptId]:Disconnect()
         end
         
-        -- Create a new task to keep firing the prompt
         local connection = RunService.Heartbeat:Connect(function()
             if prompt and prompt.Parent then
                 fireproximityprompt(prompt)
@@ -525,7 +686,6 @@ local function onPromptButtonHoldBegan(prompt)
         
         activePrompts[promptId] = connection
         
-        -- Stop after the original hold duration
         task.delay(originalHoldDuration, function()
             if connection then
                 connection:Disconnect()
@@ -537,34 +697,22 @@ end
 
 local function onPromptShown(prompt)
     if not _G.InstantInteractEnabled then return end
-    
-    -- Don't modify the prompt properties - keep it looking normal
-    -- Only increase range slightly for convenience
     prompt.MaxActivationDistance = math.max(prompt.MaxActivationDistance, 25)
-    
-    -- Don't auto-trigger by default - let the user press the button
-    -- The button press will trigger instantly
 end
 
 local function toggleInstantInteract(enabled)
     _G.InstantInteractEnabled = enabled
     
     if enabled then
-        print("Instant Interact Enabled")
-        print("Prompts will appear normal but trigger instantly when you press the button")
-        
-        -- Make existing prompts have better range
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("ProximityPrompt") then
                 obj.MaxActivationDistance = math.max(obj.MaxActivationDistance, 25)
             end
         end
         
-        -- Connect to prompt events
         local promptShown = ProximityPromptService.PromptShown:Connect(onPromptShown)
         local promptBegan = ProximityPromptService.PromptButtonHoldBegan:Connect(onPromptButtonHoldBegan)
         
-        -- Make new prompts have better range
         local descendantAdded = workspace.DescendantAdded:Connect(function(obj)
             if obj:IsA("ProximityPrompt") then
                 obj.MaxActivationDistance = math.max(obj.MaxActivationDistance, 25)
@@ -575,29 +723,22 @@ local function toggleInstantInteract(enabled)
         table.insert(instantInteractConnections, promptBegan)
         table.insert(instantInteractConnections, descendantAdded)
         
-        print("Ready! Press your interact button (usually E) near prompts to instantly trigger them")
-        
     else
-        -- Disconnect all connections
         for _, connection in ipairs(instantInteractConnections) do
             connection:Disconnect()
         end
         instantInteractConnections = {}
         
-        -- Stop all active prompt tasks
         for promptId, connection in pairs(activePrompts) do
             if connection then
                 connection:Disconnect()
             end
         end
         activePrompts = {}
-        
-        print("Instant Interact Disabled")
     end
 end
 
--- Create GUI Sections
-
+-- ========== YOUR GUI SECTIONS ==========
 -- Store toggle update functions
 local toggleUpdateFunctions = {}
 
@@ -727,44 +868,6 @@ local interactLayout = Instance.new("UIListLayout")
 interactLayout.Padding = UDim.new(0, 10)
 interactLayout.Parent = interactContainer
 
--- NPC Hitbox Size Input
-local npcInput = createNumberInput("Head Size (1-50)", 1, 50, _G.NPCHeadSize, function(value)
-    _G.NPCHeadSize = value
-end)
-npcInput.Parent = npcContainer
-
--- NPC Detection Toggle
-local npcToggle, updateNPCToggle = createToggleButton("NPC Detection", _G.NPCEnabled, function(value)
-    _G.NPCEnabled = value
-    if not value then
-        toggleESP(false)
-        toggleUpdateFunctions["NPC ESP"](false)
-    end
-end)
-npcToggle.Parent = npcContainer
-toggleUpdateFunctions["NPC Detection"] = updateNPCToggle
-
--- Enable Hitboxes Toggle
-local masterToggle, updateMasterToggle = createToggleButton("Enable Hitboxes", not _G.Disabled, function(value)
-    _G.Disabled = not value
-end)
-masterToggle.Parent = npcContainer
-toggleUpdateFunctions["Enable Hitboxes"] = updateMasterToggle
-
--- ESP Toggle
-local espToggle, updateESPToggle = createToggleButton("NPC ESP", _G.ESPEnabled, function(value)
-    toggleESP(value)
-end)
-espToggle.Parent = espContainer
-toggleUpdateFunctions["NPC ESP"] = updateESPToggle
-
--- Instant Interact Toggle
-local interactToggle, updateInteractToggle = createToggleButton("Instant Interact", _G.InstantInteractEnabled, function(value)
-    toggleInstantInteract(value)
-end)
-interactToggle.Parent = interactContainer
-toggleUpdateFunctions["Instant Interact"] = updateInteractToggle
-
 -- Info Section
 local infoSection = Instance.new("Frame")
 infoSection.Size = UDim2.new(1, 0, 0, 140)
@@ -843,6 +946,45 @@ resetButtonStroke.Color = Color3.fromRGB(100, 30, 30)
 resetButtonStroke.Thickness = 2
 resetButtonStroke.Parent = resetButton
 
+-- ========== CONTROLS ==========
+-- NPC Hitbox Size Input
+local npcInput = createNumberInput("Head Size (1-50)", 1, 50, _G.NPCHeadSize, function(value)
+    _G.NPCHeadSize = value
+end)
+npcInput.Parent = npcContainer
+
+-- NPC Detection Toggle
+local npcToggle, updateNPCToggle = createToggleButton("NPC Detection", _G.NPCEnabled, function(value)
+    _G.NPCEnabled = value
+    if not value then
+        toggleESP(false)
+        toggleUpdateFunctions["NPC ESP"](false)
+    end
+end)
+npcToggle.Parent = npcContainer
+toggleUpdateFunctions["NPC Detection"] = updateNPCToggle
+
+-- Enable Hitboxes Toggle
+local masterToggle, updateMasterToggle = createToggleButton("Enable Hitboxes", not _G.Disabled, function(value)
+    _G.Disabled = not value
+end)
+masterToggle.Parent = npcContainer
+toggleUpdateFunctions["Enable Hitboxes"] = updateMasterToggle
+
+-- ESP Toggle
+local espToggle, updateESPToggle = createToggleButton("NPC ESP", _G.ESPEnabled, function(value)
+    toggleESP(value)
+end)
+espToggle.Parent = espContainer
+toggleUpdateFunctions["NPC ESP"] = updateESPToggle
+
+-- Instant Interact Toggle
+local interactToggle, updateInteractToggle = createToggleButton("Instant Interact", _G.InstantInteractEnabled, function(value)
+    toggleInstantInteract(value)
+end)
+interactToggle.Parent = interactContainer
+toggleUpdateFunctions["Instant Interact"] = updateInteractToggle
+
 resetButton.MouseButton1Click:Connect(function()
     _G.NPCHeadSize = 20
     _G.Disabled = false
@@ -873,12 +1015,85 @@ UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
 end)
 
--- GUI Toggle Functions
+-- ========== IMPROVED NPC FINDING ==========
+local lastNPCSweep = 0
+local function findAndUpdateNPCs()
+    for _, model in ipairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and isNPC(model) then
+            local humanoid = model:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                if not TrackedNPCs[model] then
+                    TrackedNPCs[model] = true
+                end
+            else
+                -- Remove dead NPCs
+                TrackedNPCs[model] = nil
+                removeNPCESP(model)
+            end
+        end
+    end
+end
+
+-- ========== MAIN LOOP ==========
+RunService.RenderStepped:Connect(function(deltaTime)
+    if not _G.Disabled then
+        -- Sweep for NPCs every 0.3 seconds
+        lastNPCSweep = lastNPCSweep + deltaTime
+        if lastNPCSweep >= 0.3 then
+            lastNPCSweep = 0
+            findAndUpdateNPCs()
+        end
+        
+        -- Update NPC hitboxes and ESP
+        if _G.NPCEnabled then
+            for character, _ in pairs(TrackedNPCs) do
+                if character and character.Parent then
+                    adjustNPCHitbox(character, _G.NPCHeadSize)
+                else
+                    TrackedNPCs[character] = nil
+                    removeNPCESP(character)
+                end
+            end
+        end
+        
+        -- Update ESP
+        updateCompactESP()
+        
+    else
+        -- Reset everything when disabled
+        for character, _ in pairs(TrackedNPCs) do
+            if character and character.Parent then
+                local head = character:FindFirstChild("Head")
+                if head then
+                    head.Size = Vector3.new(2, 1, 1)
+                    head.Transparency = 0
+                    head.BrickColor = BrickColor.new("Medium stone grey")
+                    head.Material = Enum.Material.Plastic
+                    head.CanCollide = true
+                    head.Massless = false
+                end
+                
+                local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+                if torso then
+                    torso.Size = Vector3.new(2, 2, 1)
+                    torso.Transparency = 0
+                    torso.BrickColor = BrickColor.new("Medium stone grey")
+                    torso.Material = Enum.Material.Plastic
+                    torso.CanCollide = true
+                    torso.Massless = false
+                end
+            end
+            TrackedNPCs[character] = nil
+            removeNPCESP(character)
+        end
+    end
+end)
+
+-- GUI Functions
 local function toggleGUI()
     GUIVisible = not GUIVisible
     
     if GUIVisible then
-        -- Show GUI with animation
         MainFrame.Visible = true
         MainFrame.Position = UDim2.new(1, -370, 0.5, -225)
         
@@ -889,13 +1104,12 @@ local function toggleGUI()
         
         ToggleButton.Text = "✕"
     else
-        -- Hide GUI
         MainFrame.Visible = false
         ToggleButton.Text = "⚙"
     end
 end
 
--- GUI Interaction Functions
+-- GUI Interaction
 local isDragging = false
 local dragStart, frameStart
 
@@ -925,115 +1139,7 @@ end)
 CloseButton.MouseButton1Click:Connect(toggleGUI)
 ToggleButton.MouseButton1Click:Connect(toggleGUI)
 
--- Function to find NPCs in workspace
-local function findNPCs()
-    if not _G.NPCEnabled then return {} end
-    
-    local npcs = {}
-    
-    for _, model in ipairs(workspace:GetDescendants()) do
-        if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") then
-            local isPlayer = false
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player.Character == model then
-                    isPlayer = true
-                    break
-                end
-            end
-            
-            if not isPlayer then
-                local humanoid = model:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health > 0 then
-                    if not TrackedNPCs[model] then
-                        table.insert(npcs, model)
-                        TrackedNPCs[model] = true
-                    end
-                else
-                    TrackedNPCs[model] = nil
-                    removeNPCESP(model)
-                end
-            end
-        end
-    end
-    
-    return npcs
-end
-
--- Main hitbox adjustment function for NPCs only
-local function adjustNPCHitbox(character, headSize)
-    pcall(function()
-        local head = character:FindFirstChild("Head")
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        
-        if head and humanoid then
-            if humanoid.Health > 0 then
-                -- Adjust hitbox when alive
-                head.Size = Vector3.new(headSize, headSize, headSize)
-                head.Transparency = 0.5
-                head.BrickColor = BrickColor.new("Bright orange")
-                head.Material = Enum.Material.Neon
-                head.CanCollide = false
-                head.Massless = true
-            else
-                -- Hide hitbox when dead
-                head.Transparency = 1
-                head.CanTouch = false
-                head.CanQuery = false
-                TrackedNPCs[character] = nil
-                removeNPCESP(character)
-            end
-        end
-    end)
-end
-
--- Main loops
-RunService.RenderStepped:Connect(function()
-    if not _G.Disabled then
-        -- Process NPCs
-        if _G.NPCEnabled then
-            local npcs = findNPCs()
-            for _, npc in ipairs(npcs) do
-                adjustNPCHitbox(npc, _G.NPCHeadSize)
-            end
-        end
-        
-        -- Update NPC ESP
-        updateNPCESP()
-        
-        -- Clean up NPC tracking for removed NPCs
-        for character, _ in pairs(TrackedNPCs) do
-            if not character.Parent then
-                TrackedNPCs[character] = nil
-                removeNPCESP(character)
-            else
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if not humanoid or humanoid.Health <= 0 then
-                    TrackedNPCs[character] = nil
-                    removeNPCESP(character)
-                end
-            end
-        end
-    else
-        -- Reset NPC hitboxes when disabled
-        for character, _ in pairs(TrackedNPCs) do
-            if character and character.Parent then
-                local head = character:FindFirstChild("Head")
-                if head then
-                    head.Size = Vector3.new(2, 1, 1)
-                    head.Transparency = 0
-                    head.BrickColor = BrickColor.new("Medium stone grey")
-                    head.Material = Enum.Material.Plastic
-                    head.CanCollide = true
-                    head.Massless = false
-                end
-            end
-            TrackedNPCs[character] = nil
-            removeNPCESP(character)
-        end
-    end
-end)
-
--- Keybind to toggle GUI and master toggle
+-- Keybinds
 UserInputService.InputBegan:Connect(function(input, processed)
     if not processed then
         if input.KeyCode == Enum.KeyCode.RightShift then
@@ -1048,14 +1154,13 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 -- Initialize
-print("NPC Hitbox Configurator Loaded!")
-print("Features: NPC Hitbox, NPC ESP, Instant Interact")
+print("Ultra Compact NPC Hitbox Config Loaded!")
+print("Features: Ultra Small ESP, Smart Death Detection, Modern Design")
 print("Press INSERT to toggle GUI")
 print("Press RightShift to toggle all features")
-print("Toggle button is on the top right")
-print("GUI starts hidden - click the gear icon to open it")
-print("\nInstant Interact:")
-print("- Prompts appear NORMAL with progress bars")
-print("- Just press your interact button (usually E)")
-print("- Will instantly trigger when you press")
-print("- Works for short taps and long holds")
+print("\nESP Features:")
+print("- Ultra compact design (60x40 pixels)")
+print("- Smart ragdoll detection")
+print("- Empty health bars when dead")
+print("- Gradient health colors")
+print("- Small 3D boxes")
