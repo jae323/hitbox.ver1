@@ -20,7 +20,7 @@ _G.AimbotSmoothness = 0.6
 _G.WallCheck = true
 _G.AimbotTeamCheck = true
 _G.AimbotHeightOffset = 2.0
-_G.AimbotTargetPart = "Head"
+_G.AimbotTargetPart = "HumanoidRootPart"   -- Default: Torso
 
 -- ESP Settings
 _G.ESPColor = Color3.fromRGB(255, 50, 50)
@@ -32,7 +32,7 @@ _G.MaxDistance = 1000
 
 -- Storage for ESP boxes and NPC tracking
 local ESPBoxes = {}
-local PlayerESPBoxes = {} -- Separate storage for player ESP
+local PlayerESPBoxes = {}
 local TrackedNPCs = {}
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -47,206 +47,171 @@ local LastCacheUpdate = 0
 -- GUI State
 local GUIVisible = false
 
--- Create Modern GUI
+-- Modern Color Palette
+local Colors = {
+    Background = Color3.fromRGB(18, 18, 24),
+    Surface = Color3.fromRGB(28, 28, 36),
+    Primary = Color3.fromRGB(0, 140, 255),
+    Accent = Color3.fromRGB(255, 70, 85),
+    Text = Color3.fromRGB(230, 230, 240),
+    TextSecondary = Color3.fromRGB(150, 150, 165),
+    OnOffGreen = Color3.fromRGB(0, 200, 83),
+    OnOffRed = Color3.fromRGB(255, 50, 50),
+    Border = Color3.fromRGB(45, 45, 55)
+}
+
+-- Create ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HitboxConfigGUI"
 ScreenGui.Parent = CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Top Right Toggle Button (visible initially)
+-- Top Right Toggle Button
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Name = "ToggleButton"
-ToggleButton.Size = UDim2.new(0, 40, 0, 40)
-ToggleButton.Position = UDim2.new(1, -50, 0, 10)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-ToggleButton.BackgroundTransparency = 0.1
+ToggleButton.Size = UDim2.new(0, 42, 0, 42)
+ToggleButton.Position = UDim2.new(1, -52, 0, 10)
+ToggleButton.BackgroundColor3 = Colors.Surface
 ToggleButton.BorderSizePixel = 0
 ToggleButton.Text = "⚙"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextColor3 = Colors.Text
 ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.TextSize = 20
+ToggleButton.TextSize = 22
 ToggleButton.ZIndex = 100
 ToggleButton.Visible = true
 ToggleButton.Parent = ScreenGui
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", ToggleButton).Color = Colors.Border
 
--- Add hover effect to toggle button
-local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 6)
-ButtonCorner.Parent = ToggleButton
-
-local ButtonStroke = Instance.new("UIStroke")
-ButtonStroke.Color = Color3.fromRGB(80, 80, 90)
-ButtonStroke.Thickness = 2
-ButtonStroke.Parent = ToggleButton
-
--- Main Frame (hidden initially)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 500) -- Increased size for aimbot
-MainFrame.Position = UDim2.new(0, 10, 0.5, -250)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-MainFrame.BackgroundTransparency = 0.05
+MainFrame.Size = UDim2.new(0, 340, 0, 520)
+MainFrame.Position = UDim2.new(0, 10, 0.5, -260)
+MainFrame.BackgroundColor3 = Colors.Background
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Selectable = true
 MainFrame.Parent = ScreenGui
-
--- Frame Corner
-local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 10)
-FrameCorner.Parent = MainFrame
-
--- Frame Stroke
-local FrameStroke = Instance.new("UIStroke")
-FrameStroke.Color = Color3.fromRGB(60, 60, 70)
-FrameStroke.Thickness = 2
-FrameStroke.Parent = MainFrame
+local MainCorner = Instance.new("UICorner", MainFrame)
+MainCorner.CornerRadius = UDim.new(0, 12)
+Instance.new("UIStroke", MainFrame).Color = Colors.Border
 
 -- Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+TitleBar.Size = UDim2.new(1, 0, 0, 45)
+TitleBar.BackgroundColor3 = Colors.Surface
 TitleBar.BorderSizePixel = 0
 TitleBar.Active = true
 TitleBar.Selectable = true
 TitleBar.Parent = MainFrame
-
-local TitleBarCorner = Instance.new("UICorner")
-TitleBarCorner.CornerRadius = UDim.new(0, 10)
-TitleBarCorner.Parent = TitleBar
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
 
 local Title = Instance.new("TextLabel")
-Title.Name = "Title"
-Title.Size = UDim2.new(1, -40, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Position = UDim2.new(0, 16, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "HITBOX & AIMBOT CONFIG"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Text = "CONFIGURATION"
+Title.TextColor3 = Colors.Text
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
 
 local CloseButton = Instance.new("TextButton")
-CloseButton.Name = "CloseButton"
 CloseButton.Size = UDim2.new(0, 30, 0, 30)
-CloseButton.Position = UDim2.new(1, -35, 0.5, -15)
+CloseButton.Position = UDim2.new(1, -36, 0.5, -15)
 CloseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-CloseButton.BackgroundTransparency = 0.5
 CloseButton.Text = "✕"
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextColor3 = Colors.Text
 CloseButton.Font = Enum.Font.GothamBold
 CloseButton.TextSize = 16
 CloseButton.Parent = TitleBar
-
-local CloseButtonCorner = Instance.new("UICorner")
-CloseButtonCorner.CornerRadius = UDim.new(0, 6)
-CloseButtonCorner.Parent = CloseButton
+Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(0, 6)
 
 -- Content Frame
 local ContentFrame = Instance.new("Frame")
-ContentFrame.Name = "ContentFrame"
-ContentFrame.Size = UDim2.new(1, -10, 1, -50)
-ContentFrame.Position = UDim2.new(0, 5, 0, 45)
+ContentFrame.Size = UDim2.new(1, -16, 1, -55)
+ContentFrame.Position = UDim2.new(0, 8, 0, 50)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Active = true
 ContentFrame.Selectable = true
 ContentFrame.Parent = MainFrame
 
--- Create scroll frame for settings
+-- ScrollFrame
 local ScrollFrame = Instance.new("ScrollingFrame")
-ScrollFrame.Name = "ScrollFrame"
 ScrollFrame.Size = UDim2.new(1, 0, 1, 0)
 ScrollFrame.BackgroundTransparency = 1
 ScrollFrame.ScrollBarThickness = 4
-ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
+ScrollFrame.ScrollBarImageColor3 = Colors.Border
 ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 900)
 ScrollFrame.Active = true
 ScrollFrame.Selectable = true
 ScrollFrame.Parent = ContentFrame
+local UIListLayout = Instance.new("UIListLayout", ScrollFrame)
+UIListLayout.Padding = UDim.new(0, 12)
 
--- Create UI List Layout
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 10)
-UIListLayout.Parent = ScrollFrame
-
--- Function to create number input with text box
+-- Helper function: Modern Number Input
 local function createNumberInput(label, min, max, default, callback)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 70)
+    container.Size = UDim2.new(1, 0, 0, 72)
     container.BackgroundTransparency = 1
     
     local labelText = Instance.new("TextLabel")
     labelText.Size = UDim2.new(1, 0, 0, 20)
     labelText.BackgroundTransparency = 1
     labelText.Text = label
-    labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    labelText.TextColor3 = Colors.TextSecondary
     labelText.Font = Enum.Font.GothamMedium
-    labelText.TextSize = 13
+    labelText.TextSize = 12
     labelText.TextXAlignment = Enum.TextXAlignment.Left
     labelText.Parent = container
     
     local inputFrame = Instance.new("Frame")
-    inputFrame.Size = UDim2.new(1, 0, 0, 35)
-    inputFrame.Position = UDim2.new(0, 0, 0, 25)
-    inputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    inputFrame.Size = UDim2.new(1, 0, 0, 42)
+    inputFrame.Position = UDim2.new(0, 0, 0, 24)
+    inputFrame.BackgroundColor3 = Colors.Surface
     inputFrame.BorderSizePixel = 0
     inputFrame.Parent = container
-    
-    local inputCorner = Instance.new("UICorner")
-    inputCorner.CornerRadius = UDim.new(0, 6)
-    inputCorner.Parent = inputFrame
+    Instance.new("UICorner", inputFrame).CornerRadius = UDim.new(0, 8)
     
     local textBox = Instance.new("TextBox")
     textBox.Name = "ValueInput"
-    textBox.Size = UDim2.new(0.6, 0, 1, 0)
-    textBox.Position = UDim2.new(0.2, 0, 0, 0)
+    textBox.Size = UDim2.new(0.45, 0, 1, 0)
+    textBox.Position = UDim2.new(0.275, 0, 0, 0)
     textBox.BackgroundTransparency = 1
     textBox.Text = tostring(default)
-    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textBox.Font = Enum.Font.Gotham
+    textBox.TextColor3 = Colors.Text
+    textBox.Font = Enum.Font.GothamBold
     textBox.TextSize = 14
     textBox.TextXAlignment = Enum.TextXAlignment.Center
     textBox.ClearTextOnFocus = false
     textBox.Parent = inputFrame
     
-    -- Increment/Decrement buttons
     local minusButton = Instance.new("TextButton")
-    minusButton.Name = "MinusButton"
-    minusButton.Size = UDim2.new(0, 35, 1, 0)
-    minusButton.Position = UDim2.new(0, 0, 0, 0)
-    minusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-    minusButton.BackgroundTransparency = 0.5
-    minusButton.Text = "-"
-    minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minusButton.Size = UDim2.new(0, 40, 1, 0)
+    minusButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    minusButton.Text = "−"
+    minusButton.TextColor3 = Colors.Text
     minusButton.Font = Enum.Font.GothamBold
     minusButton.TextSize = 16
     minusButton.Parent = inputFrame
-    
-    local minusCorner = Instance.new("UICorner")
-    minusCorner.CornerRadius = UDim.new(0, 6)
-    minusCorner.Parent = minusButton
+    Instance.new("UICorner", minusButton).CornerRadius = UDim.new(0, 8)
     
     local plusButton = Instance.new("TextButton")
-    plusButton.Name = "PlusButton"
-    plusButton.Size = UDim2.new(0, 35, 1, 0)
-    plusButton.Position = UDim2.new(1, -35, 0, 0)
-    plusButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-    plusButton.BackgroundTransparency = 0.5
+    plusButton.Size = UDim2.new(0, 40, 1, 0)
+    plusButton.Position = UDim2.new(1, -40, 0, 0)
+    plusButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
     plusButton.Text = "+"
-    plusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    plusButton.TextColor3 = Colors.Text
     plusButton.Font = Enum.Font.GothamBold
     plusButton.TextSize = 16
     plusButton.Parent = inputFrame
+    Instance.new("UICorner", plusButton).CornerRadius = UDim.new(0, 8)
     
-    local plusCorner = Instance.new("UICorner")
-    plusCorner.CornerRadius = UDim.new(0, 6)
-    plusCorner.Parent = plusButton
-    
-    -- Function to validate and update value
     local function updateValue(newValue)
         local num = tonumber(newValue)
         if num then
@@ -258,447 +223,297 @@ local function createNumberInput(label, min, max, default, callback)
         end
     end
     
-    -- Text box events
     textBox.FocusLost:Connect(function(enterPressed)
         updateValue(textBox.Text)
     end)
-    
-    -- Button events
     minusButton.MouseButton1Click:Connect(function()
-        local current = tonumber(textBox.Text) or default
-        updateValue(current - 1)
+        updateValue((tonumber(textBox.Text) or default) - 1)
     end)
-    
     plusButton.MouseButton1Click:Connect(function()
-        local current = tonumber(textBox.Text) or default
-        updateValue(current + 1)
+        updateValue((tonumber(textBox.Text) or default) + 1)
     end)
     
     return container
 end
 
--- Function to create ON/OFF toggle buttons (simple and reliable)
+-- Helper function: Modern Toggle Button
 local function createToggleButton(label, default, callback)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 40)
+    container.Size = UDim2.new(1, 0, 0, 42)
     container.BackgroundTransparency = 1
     
     local labelText = Instance.new("TextLabel")
     labelText.Size = UDim2.new(0.6, 0, 1, 0)
     labelText.BackgroundTransparency = 1
     labelText.Text = label
-    labelText.TextColor3 = Color3.fromRGB(220, 220, 220)
+    labelText.TextColor3 = Colors.TextSecondary
     labelText.Font = Enum.Font.GothamMedium
     labelText.TextSize = 13
     labelText.TextXAlignment = Enum.TextXAlignment.Left
     labelText.Parent = container
     
-    -- Create the toggle button
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(0.35, 0, 0.7, 0)
-    toggleButton.Position = UDim2.new(0.65, 0, 0.15, 0)
-    toggleButton.BackgroundColor3 = default and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(200, 50, 50)
-    toggleButton.Text = default and "ON" or "OFF"
-    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.Font = Enum.Font.GothamBold
-    toggleButton.TextSize = 13
-    toggleButton.Parent = container
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0.35, 0, 0.7, 0)
+    toggleBtn.Position = UDim2.new(0.65, 0, 0.15, 0)
+    toggleBtn.BackgroundColor3 = default and Colors.OnOffGreen or Colors.OnOffRed
+    toggleBtn.Text = default and "ON" or "OFF"
+    toggleBtn.TextColor3 = Colors.Text
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.TextSize = 12
+    toggleBtn.Parent = container
+    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", toggleBtn).Color = Colors.Border
     
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 6)
-    toggleCorner.Parent = toggleButton
-    
-    local toggleStroke = Instance.new("UIStroke")
-    toggleStroke.Color = Color3.fromRGB(60, 60, 70)
-    toggleStroke.Thickness = 2
-    toggleStroke.Parent = toggleButton
-    
-    -- Store the current state
     local state = default
-    
-    -- Function to update button appearance
-    local function updateButton()
-        if state then
-            toggleButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-            toggleButton.Text = "ON"
-        else
-            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            toggleButton.Text = "OFF"
-        end
+    local function updateVisual()
+        toggleBtn.BackgroundColor3 = state and Colors.OnOffGreen or Colors.OnOffRed
+        toggleBtn.Text = state and "ON" or "OFF"
     end
+    updateVisual()
     
-    -- Initialize button
-    updateButton()
-    
-    -- Button click event
-    toggleButton.MouseButton1Click:Connect(function()
+    toggleBtn.MouseButton1Click:Connect(function()
         state = not state
-        updateButton()
+        updateVisual()
         callback(state)
     end)
     
     return container, function(newState)
         state = newState
-        updateButton()
+        updateVisual()
     end
 end
 
--- Function to create dropdown for aimbot target part
-local function createDropdown(label, options, default, callback)
+-- Helper function: Modern Target Part Selector (Head/Torso)
+local function createTargetPartSelector(default, callback)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 50)
+    container.Size = UDim2.new(1, 0, 0, 48)
     container.BackgroundTransparency = 1
     
-    local labelText = Instance.new("TextLabel")
-    labelText.Size = UDim2.new(1, 0, 0, 20)
-    labelText.BackgroundTransparency = 1
-    labelText.Text = label
-    labelText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    labelText.Font = Enum.Font.GothamMedium
-    labelText.TextSize = 13
-    labelText.TextXAlignment = Enum.TextXAlignment.Left
-    labelText.Parent = container
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 18)
+    label.BackgroundTransparency = 1
+    label.Text = "AIM TARGET"
+    label.TextColor3 = Colors.TextSecondary
+    label.Font = Enum.Font.GothamMedium
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
     
-    local dropdownButton = Instance.new("TextButton")
-    dropdownButton.Size = UDim2.new(1, 0, 0, 25)
-    dropdownButton.Position = UDim2.new(0, 0, 0, 20)
-    dropdownButton.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-    dropdownButton.Text = default
-    dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    dropdownButton.Font = Enum.Font.Gotham
-    dropdownButton.TextSize = 13
-    dropdownButton.Parent = container
+    local buttonFrame = Instance.new("Frame")
+    buttonFrame.Size = UDim2.new(1, 0, 0, 28)
+    buttonFrame.Position = UDim2.new(0, 0, 0, 22)
+    buttonFrame.BackgroundTransparency = 1
+    buttonFrame.Parent = container
     
-    local dropdownCorner = Instance.new("UICorner")
-    dropdownCorner.CornerRadius = UDim.new(0, 6)
-    dropdownCorner.Parent = dropdownButton
+    -- Head Button
+    local headButton = Instance.new("TextButton")
+    headButton.Size = UDim2.new(0.48, 0, 1, 0)
+    headButton.BackgroundColor3 = (default == "Head") and Colors.Primary or Colors.Surface
+    headButton.Text = "HEAD"
+    headButton.TextColor3 = Colors.Text
+    headButton.Font = Enum.Font.GothamBold
+    headButton.TextSize = 13
+    headButton.Parent = buttonFrame
+    Instance.new("UICorner", headButton).CornerRadius = UDim.new(0, 6)
     
-    -- Dropdown frame
-    local dropdownFrame = Instance.new("Frame")
-    dropdownFrame.Size = UDim2.new(1, 0, 0, 0)
-    dropdownFrame.Position = UDim2.new(0, 0, 0, 50)
-    dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    dropdownFrame.Visible = false
-    dropdownFrame.ClipsDescendants = true
-    dropdownFrame.Parent = container
+    -- Torso Button
+    local torsoButton = Instance.new("TextButton")
+    torsoButton.Size = UDim2.new(0.48, 0, 1, 0)
+    torsoButton.Position = UDim2.new(0.52, 0, 0, 0)
+    torsoButton.BackgroundColor3 = (default == "HumanoidRootPart") and Colors.Primary or Colors.Surface
+    torsoButton.Text = "TORSO"
+    torsoButton.TextColor3 = Colors.Text
+    torsoButton.Font = Enum.Font.GothamBold
+    torsoButton.TextSize = 13
+    torsoButton.Parent = buttonFrame
+    Instance.new("UICorner", torsoButton).CornerRadius = UDim.new(0, 6)
     
-    local dropdownList = Instance.new("UIListLayout")
-    dropdownList.Parent = dropdownFrame
-    
-    -- Create option buttons
-    for _, option in ipairs(options) do
-        local optionButton = Instance.new("TextButton")
-        optionButton.Size = UDim2.new(1, 0, 0, 25)
-        optionButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-        optionButton.Text = option
-        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        optionButton.Font = Enum.Font.Gotham
-        optionButton.TextSize = 12
-        optionButton.Parent = dropdownFrame
-        
-        optionButton.MouseButton1Click:Connect(function()
-            dropdownButton.Text = option
-            dropdownFrame.Visible = false
-            container.Size = UDim2.new(1, 0, 0, 50)
-            callback(option)
-        end)
+    local current = default
+    local function updateSelection()
+        headButton.BackgroundColor3 = (current == "Head") and Colors.Primary or Colors.Surface
+        torsoButton.BackgroundColor3 = (current == "HumanoidRootPart") and Colors.Primary or Colors.Surface
     end
+    updateSelection()
     
-    -- Toggle dropdown
-    dropdownButton.MouseButton1Click:Connect(function()
-        dropdownFrame.Visible = not dropdownFrame.Visible
-        if dropdownFrame.Visible then
-            dropdownFrame.Size = UDim2.new(1, 0, 0, #options * 25)
-            container.Size = UDim2.new(1, 0, 0, 50 + (#options * 25))
-        else
-            dropdownFrame.Size = UDim2.new(1, 0, 0, 0)
-            container.Size = UDim2.new(1, 0, 0, 50)
-        end
+    headButton.MouseButton1Click:Connect(function()
+        current = "Head"
+        updateSelection()
+        callback(current)
+    end)
+    torsoButton.MouseButton1Click:Connect(function()
+        current = "HumanoidRootPart"
+        updateSelection()
+        callback(current)
     end)
     
     return container
 end
 
--- Player Settings Section
-local playerSection = Instance.new("Frame")
-playerSection.Size = UDim2.new(1, 0, 0, 80)
-playerSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-playerSection.BorderSizePixel = 0
-playerSection.Active = true
-playerSection.Selectable = true
-playerSection.Parent = ScrollFrame
+-- Create Sections
+local function addSection(title, accentColor)
+    local section = Instance.new("Frame")
+    section.Size = UDim2.new(1, 0, 0, 10) -- will be updated dynamically
+    section.BackgroundColor3 = Colors.Surface
+    section.BorderSizePixel = 0
+    section.Active = true
+    section.Selectable = true
+    section.Parent = ScrollFrame
+    Instance.new("UICorner", section).CornerRadius = UDim.new(0, 10)
+    
+    local headerFrame = Instance.new("Frame")
+    headerFrame.Size = UDim2.new(1, 0, 0, 36)
+    headerFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    headerFrame.BorderSizePixel = 0
+    headerFrame.Parent = section
+    Instance.new("UICorner", headerFrame).CornerRadius = UDim.new(0, 10)
+    
+    local headerText = Instance.new("TextLabel")
+    headerText.Size = UDim2.new(1, -20, 1, 0)
+    headerText.Position = UDim2.new(0, 10, 0, 0)
+    headerText.BackgroundTransparency = 1
+    headerText.Text = title
+    headerText.TextColor3 = accentColor
+    headerText.Font = Enum.Font.GothamBold
+    headerText.TextSize = 14
+    headerText.TextXAlignment = Enum.TextXAlignment.Left
+    headerText.Parent = headerFrame
+    
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, -16, 0, 0)
+    content.Position = UDim2.new(0, 8, 0, 40)
+    content.BackgroundTransparency = 1
+    content.Active = true
+    content.Selectable = true
+    content.Parent = section
+    
+    local layout = Instance.new("UIListLayout", content)
+    layout.Padding = UDim.new(0, 8)
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        content.Size = UDim2.new(1, -16, 0, layout.AbsoluteContentSize.Y)
+        section.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y + 48)
+    end)
+    
+    return content
+end
 
-local playerSectionCorner = Instance.new("UICorner")
-playerSectionCorner.CornerRadius = UDim.new(0, 8)
-playerSectionCorner.Parent = playerSection
-
-local playerSectionHeader = Instance.new("TextLabel")
-playerSectionHeader.Size = UDim2.new(1, -10, 0, 25)
-playerSectionHeader.Position = UDim2.new(0, 5, 0, 5)
-playerSectionHeader.BackgroundTransparency = 1
-playerSectionHeader.Text = "PLAYER HITBOX"
-playerSectionHeader.TextColor3 = Color3.fromRGB(0, 150, 255)
-playerSectionHeader.Font = Enum.Font.GothamBold
-playerSectionHeader.TextSize = 14
-playerSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
-playerSectionHeader.Parent = playerSection
-
--- Player Hitbox Size Input
-local playerInput = createNumberInput("Head Size (1-50)", 1, 50, _G.PlayerHeadSize, function(value)
+-- Build GUI Sections
+local playerContent = addSection("PLAYER HITBOX", Color3.fromRGB(0, 150, 255))
+createNumberInput("Head Size (1-50)", 1, 50, _G.PlayerHeadSize, function(value)
     _G.PlayerHeadSize = value
-end)
-playerInput.Position = UDim2.new(0, 5, 0, 30)
-playerInput.Parent = playerSection
+end).Parent = playerContent
 
--- NPC Settings Section
-local npcSection = Instance.new("Frame")
-npcSection.Size = UDim2.new(1, 0, 0, 80)
-npcSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-npcSection.BorderSizePixel = 0
-npcSection.Active = true
-npcSection.Selectable = true
-npcSection.Parent = ScrollFrame
-
-local npcSectionCorner = Instance.new("UICorner")
-npcSectionCorner.CornerRadius = UDim.new(0, 8)
-npcSectionCorner.Parent = npcSection
-
-local npcSectionHeader = Instance.new("TextLabel")
-npcSectionHeader.Size = UDim2.new(1, -10, 0, 25)
-npcSectionHeader.Position = UDim2.new(0, 5, 0, 5)
-npcSectionHeader.BackgroundTransparency = 1
-npcSectionHeader.Text = "NPC HITBOX"
-npcSectionHeader.TextColor3 = Color3.fromRGB(255, 150, 0)
-npcSectionHeader.Font = Enum.Font.GothamBold
-npcSectionHeader.TextSize = 14
-npcSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
-npcSectionHeader.Parent = npcSection
-
--- NPC Hitbox Size Input
-local npcInput = createNumberInput("Head Size (1-50)", 1, 50, _G.NPCHeadSize, function(value)
+local npcContent = addSection("NPC HITBOX", Color3.fromRGB(255, 150, 0))
+createNumberInput("Head Size (1-50)", 1, 50, _G.NPCHeadSize, function(value)
     _G.NPCHeadSize = value
-end)
-npcInput.Position = UDim2.new(0, 5, 0, 30)
-npcInput.Parent = npcSection
+end).Parent = npcContent
 
--- Aimbot Settings Section
-local aimbotSection = Instance.new("Frame")
-aimbotSection.Size = UDim2.new(1, 0, 0, 280)
-aimbotSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-aimbotSection.BorderSizePixel = 0
-aimbotSection.Active = true
-aimbotSection.Selectable = true
-aimbotSection.Parent = ScrollFrame
-
-local aimbotSectionCorner = Instance.new("UICorner")
-aimbotSectionCorner.CornerRadius = UDim.new(0, 8)
-aimbotSectionCorner.Parent = aimbotSection
-
-local aimbotSectionHeader = Instance.new("TextLabel")
-aimbotSectionHeader.Size = UDim2.new(1, -10, 0, 25)
-aimbotSectionHeader.Position = UDim2.new(0, 5, 0, 5)
-aimbotSectionHeader.BackgroundTransparency = 1
-aimbotSectionHeader.Text = "AIMBOT SETTINGS"
-aimbotSectionHeader.TextColor3 = Color3.fromRGB(255, 100, 100)
-aimbotSectionHeader.Font = Enum.Font.GothamBold
-aimbotSectionHeader.TextSize = 14
-aimbotSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
-aimbotSectionHeader.Parent = aimbotSection
-
--- Create Aimbot Settings Container
-local aimbotContainer = Instance.new("Frame")
-aimbotContainer.Size = UDim2.new(1, -10, 0, 245)
-aimbotContainer.Position = UDim2.new(0, 5, 0, 30)
-aimbotContainer.BackgroundTransparency = 1
-aimbotContainer.Active = true
-aimbotContainer.Selectable = true
-aimbotContainer.Parent = aimbotSection
-
-local aimbotLayout = Instance.new("UIListLayout")
-aimbotLayout.Padding = UDim.new(0, 5)
-aimbotLayout.Parent = aimbotContainer
-
--- Store toggle update functions
+-- Aimbot Section
+local aimbotContent = addSection("AIMBOT", Colors.Accent)
 local toggleUpdateFunctions = {}
 
--- Create Aimbot Toggles and Inputs
-local aimbotToggle, updateAimbotToggle = createToggleButton("Aimbot", _G.AimbotEnabled, function(value)
-    _G.AimbotEnabled = value
-    if value and not FOVCircle then
-        createFOVCircle()
-    elseif not value and FOVCircle then
-        FOVCircle:Remove()
-        FOVCircle = nil
-    end
+local aimbotToggle, updateAimbot = createToggleButton("Enabled", _G.AimbotEnabled, function(val)
+    _G.AimbotEnabled = val
+    if val and not FOVCircle then createFOVCircle()
+    elseif not val and FOVCircle then FOVCircle:Remove(); FOVCircle = nil end
 end)
-aimbotToggle.Parent = aimbotContainer
-toggleUpdateFunctions["Aimbot"] = updateAimbotToggle
+aimbotToggle.Parent = aimbotContent
+toggleUpdateFunctions["Aimbot"] = updateAimbot
 
-local wallCheckToggle, updateWallCheckToggle = createToggleButton("Wall Check", _G.WallCheck, function(value)
-    _G.WallCheck = value
-end)
-wallCheckToggle.Parent = aimbotContainer
-toggleUpdateFunctions["Wall Check"] = updateWallCheckToggle
+local wallToggle, updateWall = createToggleButton("Wall Check", _G.WallCheck, function(val) _G.WallCheck = val end)
+wallToggle.Parent = aimbotContent
+toggleUpdateFunctions["Wall Check"] = updateWall
 
-local aimbotTeamToggle, updateAimbotTeamToggle = createToggleButton("Aimbot Team Check", _G.AimbotTeamCheck, function(value)
-    _G.AimbotTeamCheck = value
-end)
-aimbotTeamToggle.Parent = aimbotContainer
-toggleUpdateFunctions["Aimbot Team Check"] = updateAimbotTeamToggle
+local teamToggle, updateTeam = createToggleButton("Team Check", _G.AimbotTeamCheck, function(val) _G.AimbotTeamCheck = val end)
+teamToggle.Parent = aimbotContent
+toggleUpdateFunctions["Aimbot Team Check"] = updateTeam
 
--- Aimbot FOV Input
-local fovInput = createNumberInput("Aimbot FOV (1-360)", 1, 360, _G.AimbotFOV, function(value)
+-- FOV Input
+local fovInput = createNumberInput("FOV (1-360)", 1, 360, _G.AimbotFOV, function(value)
     _G.AimbotFOV = value
-    if FOVCircle then
-        FOVCircle.Radius = value
-    end
+    if FOVCircle then FOVCircle.Radius = value end
 end)
-fovInput.Parent = aimbotContainer
+fovInput.Parent = aimbotContent
 
--- Smooth Aim Input
-local smoothInput = createNumberInput("Smooth Aim (0.1-1.0)", 0.1, 1.0, _G.AimbotSmoothness, function(value)
+local smoothInput = createNumberInput("Smoothness (0.1-1.0)", 0.1, 1.0, _G.AimbotSmoothness, function(value)
     _G.AimbotSmoothness = value
 end)
-smoothInput.Parent = aimbotContainer
+smoothInput.Parent = aimbotContent
 
--- Height Offset Input
 local heightInput = createNumberInput("Height Offset (0-10)", 0, 10, _G.AimbotHeightOffset, function(value)
     _G.AimbotHeightOffset = value
 end)
-heightInput.Parent = aimbotContainer
+heightInput.Parent = aimbotContent
 
--- Target Part Dropdown
-local partDropdown = createDropdown("Target Part", {"Head", "HumanoidRootPart", "UpperTorso"}, _G.AimbotTargetPart, function(value)
-    _G.AimbotTargetPart = value
+-- Target Part Selector (Head / Torso)
+createTargetPartSelector(_G.AimbotTargetPart, function(part)
+    _G.AimbotTargetPart = part
+end).Parent = aimbotContent
+
+-- General Settings Section
+local generalContent = addSection("GENERAL", Color3.fromRGB(0, 200, 100))
+
+local masterToggle, updateMaster = createToggleButton("Enable Hitboxes", not _G.Disabled, function(val)
+    _G.Disabled = not val
 end)
-partDropdown.Parent = aimbotContainer
+masterToggle.Parent = generalContent
+toggleUpdateFunctions["Enable Hitboxes"] = updateMaster
 
--- Toggles Section (General Settings)
-local toggleSection = Instance.new("Frame")
-toggleSection.Size = UDim2.new(1, 0, 0, 180)
-toggleSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-toggleSection.BorderSizePixel = 0
-toggleSection.Active = true
-toggleSection.Selectable = true
-toggleSection.Parent = ScrollFrame
+local npcToggle, updateNPC = createToggleButton("NPC Detection", _G.NPCEnabled, function(val) _G.NPCEnabled = val end)
+npcToggle.Parent = generalContent
+toggleUpdateFunctions["NPC Detection"] = updateNPC
 
-local toggleSectionCorner = Instance.new("UICorner")
-toggleSectionCorner.CornerRadius = UDim.new(0, 8)
-toggleSectionCorner.Parent = toggleSection
+local espToggle, updateESP = createToggleButton("ESP Display", _G.ESPEnabled, function(val) _G.ESPEnabled = val end)
+espToggle.Parent = generalContent
+toggleUpdateFunctions["ESP Display"] = updateESP
 
-local toggleSectionHeader = Instance.new("TextLabel")
-toggleSectionHeader.Size = UDim2.new(1, -10, 0, 25)
-toggleSectionHeader.Position = UDim2.new(0, 5, 0, 5)
-toggleSectionHeader.BackgroundTransparency = 1
-toggleSectionHeader.Text = "GENERAL SETTINGS"
-toggleSectionHeader.TextColor3 = Color3.fromRGB(0, 200, 100)
-toggleSectionHeader.Font = Enum.Font.GothamBold
-toggleSectionHeader.TextSize = 14
-toggleSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
-toggleSectionHeader.Parent = toggleSection
+local teamCheckToggle, updateTeamCheck = createToggleButton("Team Check", _G.TeamCheck, function(val) _G.TeamCheck = val end)
+teamCheckToggle.Parent = generalContent
+toggleUpdateFunctions["Team Check"] = updateTeamCheck
 
--- Create Toggles Container
-local togglesContainer = Instance.new("Frame")
-togglesContainer.Size = UDim2.new(1, -10, 0, 145)
-togglesContainer.Position = UDim2.new(0, 5, 0, 30)
-togglesContainer.BackgroundTransparency = 1
-togglesContainer.Active = true
-togglesContainer.Selectable = true
-togglesContainer.Parent = toggleSection
+-- Reset Button
+local resetFrame = Instance.new("Frame")
+resetFrame.Size = UDim2.new(1, 0, 0, 48)
+resetFrame.BackgroundTransparency = 1
+resetFrame.Parent = ScrollFrame
 
-local togglesLayout = Instance.new("UIListLayout")
-togglesLayout.Padding = UDim.new(0, 8)
-togglesLayout.Parent = togglesContainer
+local resetBtn = Instance.new("TextButton")
+resetBtn.Size = UDim2.new(1, 0, 0, 40)
+resetBtn.Position = UDim2.new(0, 0, 0, 8)
+resetBtn.BackgroundColor3 = Colors.Accent
+resetBtn.Text = "RESET TO DEFAULTS"
+resetBtn.TextColor3 = Colors.Text
+resetBtn.Font = Enum.Font.GothamBold
+resetBtn.TextSize = 14
+resetBtn.Parent = resetFrame
+Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 8)
 
--- Create Toggles
-local masterToggle, updateMasterToggle = createToggleButton("Enable Hitboxes", not _G.Disabled, function(value)
-    _G.Disabled = not value
-end)
-masterToggle.Parent = togglesContainer
-toggleUpdateFunctions["Enable Hitboxes"] = updateMasterToggle
-
-local npcToggle, updateNPCToggle = createToggleButton("NPC Detection", _G.NPCEnabled, function(value)
-    _G.NPCEnabled = value
-end)
-npcToggle.Parent = togglesContainer
-toggleUpdateFunctions["NPC Detection"] = updateNPCToggle
-
-local espToggle, updateESPToggle = createToggleButton("ESP Display", _G.ESPEnabled, function(value)
-    _G.ESPEnabled = value
-end)
-espToggle.Parent = togglesContainer
-toggleUpdateFunctions["ESP Display"] = updateESPToggle
-
-local teamToggle, updateTeamToggle = createToggleButton("Team Check", _G.TeamCheck, function(value)
-    _G.TeamCheck = value
-end)
-teamToggle.Parent = togglesContainer
-toggleUpdateFunctions["Team Check"] = updateTeamToggle
-
--- Reset Button Section
-local resetSection = Instance.new("Frame")
-resetSection.Size = UDim2.new(1, 0, 0, 60)
-resetSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-resetSection.BorderSizePixel = 0
-resetSection.Active = true
-resetSection.Selectable = true
-resetSection.Parent = ScrollFrame
-
-local resetSectionCorner = Instance.new("UICorner")
-resetSectionCorner.CornerRadius = UDim.new(0, 8)
-resetSectionCorner.Parent = resetSection
-
-local resetButton = Instance.new("TextButton")
-resetButton.Size = UDim2.new(1, -10, 0, 40)
-resetButton.Position = UDim2.new(0, 5, 0, 10)
-resetButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-resetButton.Text = "RESET TO DEFAULTS"
-resetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-resetButton.Font = Enum.Font.GothamBold
-resetButton.TextSize = 14
-resetButton.Parent = resetSection
-
-local resetButtonCorner = Instance.new("UICorner")
-resetButtonCorner.CornerRadius = UDim.new(0, 6)
-resetButtonCorner.Parent = resetButton
-
-resetButton.MouseButton1Click:Connect(function()
-    _G.PlayerHeadSize = 20
-    _G.NPCHeadSize = 20
-    _G.Disabled = false
-    _G.TeamCheck = true
-    _G.NPCEnabled = true
-    _G.ESPEnabled = true
+resetBtn.MouseButton1Click:Connect(function()
+    _G.PlayerHeadSize = 20; _G.NPCHeadSize = 20; _G.Disabled = false
+    _G.TeamCheck = true; _G.NPCEnabled = true; _G.ESPEnabled = true
+    _G.AimbotEnabled = false; _G.AimbotFOV = 100; _G.AimbotSmoothness = 0.6
+    _G.WallCheck = true; _G.AimbotTeamCheck = true; _G.AimbotHeightOffset = 2.0
+    _G.AimbotTargetPart = "HumanoidRootPart"
     
-    -- Aimbot defaults
-    _G.AimbotEnabled = false
-    _G.AimbotFOV = 100
-    _G.AimbotSmoothness = 0.6
-    _G.WallCheck = true
-    _G.AimbotTeamCheck = true
-    _G.AimbotHeightOffset = 2.0
-    _G.AimbotTargetPart = "Head"
-    
-    -- Update number inputs
-    local playerTextBox = playerInput:FindFirstChild("ValueInput", true)
-    local npcTextBox = npcInput:FindFirstChild("ValueInput", true)
-    local fovTextBox = fovInput:FindFirstChild("ValueInput", true)
-    local smoothTextBox = smoothInput:FindFirstChild("ValueInput", true)
-    local heightTextBox = heightInput:FindFirstChild("ValueInput", true)
-    
-    if playerTextBox then playerTextBox.Text = "20" end
-    if npcTextBox then npcTextBox.Text = "20" end
-    if fovTextBox then fovTextBox.Text = "100" end
-    if smoothTextBox then smoothTextBox.Text = "0.6" end
-    if heightTextBox then heightTextBox.Text = "2.0" end
-    
-    -- Update dropdown
-    if partDropdown then
-        local dropdownButton = partDropdown:FindFirstChild("TextButton")
-        if dropdownButton then dropdownButton.Text = "Head" end
+    -- Update input fields
+    for _, section in ipairs({playerContent, npcContent, aimbotContent}) do
+        local textBoxes = section:GetDescendants()
+        for _, obj in ipairs(textBoxes) do
+            if obj.Name == "ValueInput" then
+                local parentLabel = obj.Parent.Parent:FindFirstChildOfClass("TextLabel")
+                if parentLabel then
+                    local label = parentLabel.Text
+                    if label:find("Player") then obj.Text = "20"
+                    elseif label:find("NPC") then obj.Text = "20"
+                    elseif label:find("FOV") then obj.Text = "100"
+                    elseif label:find("Smoothness") then obj.Text = "0.6"
+                    elseif label:find("Height Offset") then obj.Text = "2.0"
+                    end
+                end
+            end
+        end
     end
     
-    -- Update toggle buttons
+    -- Update toggles
     toggleUpdateFunctions["Enable Hitboxes"](true)
     toggleUpdateFunctions["NPC Detection"](true)
     toggleUpdateFunctions["ESP Display"](true)
@@ -707,43 +522,31 @@ resetButton.MouseButton1Click:Connect(function()
     toggleUpdateFunctions["Wall Check"](true)
     toggleUpdateFunctions["Aimbot Team Check"](true)
     
-    -- Remove FOV circle if it exists
-    if FOVCircle then
-        FOVCircle:Remove()
-        FOVCircle = nil
+    -- Update target selector
+    for _, btn in ipairs(aimbotContent:GetDescendants()) do
+        if btn.Name == "TextButton" and (btn.Text == "HEAD" or btn.Text == "TORSO") then
+            if btn.Text == "TORSO" then
+                btn.BackgroundColor3 = Colors.Primary
+                if btn:FindFirstAncestor("Frame") then
+                    local other = btn:FindFirstAncestor("Frame"):FindFirstChild("TextButton")
+                    if other and other ~= btn then
+                        other.BackgroundColor3 = Colors.Surface
+                    end
+                end
+            end
+        end
     end
     
+    if FOVCircle then FOVCircle:Remove(); FOVCircle = nil end
     print("Settings reset to defaults!")
 end)
 
--- Update scroll frame size
+-- Update Canvas Size
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
 end)
 
--- GUI Toggle Functions
-local function toggleGUI()
-    GUIVisible = not GUIVisible
-    
-    if GUIVisible then
-        -- Show GUI with animation
-        MainFrame.Visible = true
-        MainFrame.Position = UDim2.new(1, -330, 0.5, -250)
-        
-        local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Position = UDim2.new(1, -330, 0.5, -250)
-        })
-        tween:Play()
-        
-        ToggleButton.Text = "✕"
-    else
-        -- Hide GUI
-        MainFrame.Visible = false
-        ToggleButton.Text = "⚙"
-    end
-end
-
--- GUI Interaction Functions
+-- GUI Dragging and Toggle
 local isDragging = false
 local dragStart, frameStart
 
@@ -754,13 +557,11 @@ TitleBar.InputBegan:Connect(function(input)
         frameStart = MainFrame.Position
     end
 end)
-
 TitleBar.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         isDragging = false
     end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
     if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
@@ -769,28 +570,35 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Button Events
+local function toggleGUI()
+    GUIVisible = not GUIVisible
+    if GUIVisible then
+        MainFrame.Visible = true
+        ToggleButton.Text = "✕"
+    else
+        MainFrame.Visible = false
+        ToggleButton.Text = "⚙"
+    end
+end
+
 CloseButton.MouseButton1Click:Connect(toggleGUI)
 ToggleButton.MouseButton1Click:Connect(toggleGUI)
 
--- Function to check if a player is an enemy
+-- ========== GAMEPLAY LOGIC (unchanged) ==========
 local function isEnemy(player)
     if not _G.TeamCheck then return true end
     if not LocalPlayer.Team or not player.Team then return true end
     return LocalPlayer.Team ~= player.Team
 end
 
--- Function to check if a player is an enemy for aimbot
 local function isAimbotEnemy(player)
     if not _G.AimbotTeamCheck then return true end
     if not LocalPlayer.Team or not player.Team then return true end
     return LocalPlayer.Team ~= player.Team
 end
 
--- ESP Functions for Players
 local function createPlayerESPBox(character)
     if not character or not character:FindFirstChild("Head") then return nil end
-    
     local player = Players:GetPlayerFromCharacter(character)
     if not player then return nil end
     
@@ -830,40 +638,24 @@ local function createPlayerESPBox(character)
             infoLabel.Font = Enum.Font.Gotham
             infoLabel.TextSize = 12
             infoLabel.Parent = billboard
-            
-            PlayerESPBoxes[character] = {
-                Highlight = highlight,
-                Billboard = billboard,
-                InfoLabel = infoLabel,
-                Player = player
-            }
+            PlayerESPBoxes[character] = {Highlight = highlight, Billboard = billboard, InfoLabel = infoLabel, Player = player}
         else
-            PlayerESPBoxes[character] = {
-                Highlight = highlight,
-                Billboard = billboard,
-                Player = player
-            }
+            PlayerESPBoxes[character] = {Highlight = highlight, Billboard = billboard, Player = player}
         end
-        
         billboard.Parent = character
     else
-        PlayerESPBoxes[character] = {
-            Highlight = highlight,
-            Player = player
-        }
+        PlayerESPBoxes[character] = {Highlight = highlight, Player = player}
     end
-    
     return PlayerESPBoxes[character]
 end
 
--- ESP Functions for NPCs
 local function createNPCESPBox(character)
     if not character or not character:FindFirstChild("Head") then return nil end
     
     local highlight = Instance.new("Highlight")
     highlight.Name = "NPCESP_Highlight"
     highlight.Adornee = character
-    highlight.FillColor = Color3.fromRGB(255, 150, 0) -- Orange for NPCs
+    highlight.FillColor = Color3.fromRGB(255, 150, 0)
     highlight.FillTransparency = _G.ESPTransparency
     highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
     highlight.OutlineTransparency = 0
@@ -896,111 +688,66 @@ local function createNPCESPBox(character)
             infoLabel.Font = Enum.Font.Gotham
             infoLabel.TextSize = 12
             infoLabel.Parent = billboard
-            
-            ESPBoxes[character] = {
-                Highlight = highlight,
-                Billboard = billboard,
-                InfoLabel = infoLabel,
-                IsNPC = true
-            }
+            ESPBoxes[character] = {Highlight = highlight, Billboard = billboard, InfoLabel = infoLabel, IsNPC = true}
         else
-            ESPBoxes[character] = {
-                Highlight = highlight,
-                Billboard = billboard,
-                IsNPC = true
-            }
+            ESPBoxes[character] = {Highlight = highlight, Billboard = billboard, IsNPC = true}
         end
-        
         billboard.Parent = character
     else
-        ESPBoxes[character] = {
-            Highlight = highlight,
-            IsNPC = true
-        }
+        ESPBoxes[character] = {Highlight = highlight, IsNPC = true}
     end
-    
     return ESPBoxes[character]
 end
 
 local function updateESP(character, espData)
     if not character or not espData then return end
-    
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid then return end
-    
-    -- Remove ESP if player is dead or NPC is dead
     if humanoid.Health <= 0 then
         if espData.Highlight then espData.Highlight:Destroy() end
         if espData.Billboard then espData.Billboard:Destroy() end
-        if espData.Player then
-            PlayerESPBoxes[character] = nil
-        else
-            ESPBoxes[character] = nil
-        end
+        if espData.Player then PlayerESPBoxes[character] = nil else ESPBoxes[character] = nil end
         return
     end
-    
-    -- Update distance and health info
     if espData.InfoLabel then
         local infoText = ""
-        
         if _G.ShowDistance then
             local distance = (character:GetPivot().Position - Camera.CFrame.Position).Magnitude
-            if distance <= _G.MaxDistance then
-                infoText = string.format("Dist: %d", math.floor(distance))
-            end
+            if distance <= _G.MaxDistance then infoText = string.format("Dist: %d", math.floor(distance)) end
         end
-        
         if _G.ShowHealth then
-            if infoText ~= "" then
-                infoText = infoText .. " | "
-            end
+            if infoText ~= "" then infoText = infoText .. " | " end
             infoText = infoText .. string.format("HP: %d/%d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth))
         end
-        
         espData.InfoLabel.Text = infoText
     end
-    
-    -- Update ESP color for players based on team
     if espData.Player then
         espData.Highlight.FillColor = isEnemy(espData.Player) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 150, 255)
         if espData.Billboard then
             local nameLabel = espData.Billboard:FindFirstChild("TextLabel")
-            if nameLabel then
-                nameLabel.TextColor3 = espData.Highlight.FillColor
-            end
+            if nameLabel then nameLabel.TextColor3 = espData.Highlight.FillColor end
         end
     end
 end
 
--- Function to find NPCs in workspace
 local function findNPCs()
     if not _G.NPCEnabled then return {} end
-    
     local npcs = {}
-    
-    -- Look for models with Humanoid that aren't player characters
     for _, model in ipairs(workspace:GetDescendants()) do
         if model:IsA("Model") and model:FindFirstChildOfClass("Humanoid") then
             local isPlayer = false
             for _, player in ipairs(Players:GetPlayers()) do
-                if player.Character == model then
-                    isPlayer = true
-                    break
-                end
+                if player.Character == model then isPlayer = true break end
             end
-            
             if not isPlayer and not TrackedNPCs[model] then
                 table.insert(npcs, model)
                 TrackedNPCs[model] = true
             end
         end
     end
-    
     return npcs
 end
 
--- Aimbot Functions
 local function createFOVCircle()
     if not FOVCircle then
         FOVCircle = Drawing.new("Circle")
@@ -1017,50 +764,36 @@ end
 
 local function isWallCheckPassed(targetPart)
     if not _G.WallCheck then return true end
-    
     local origin = Camera.CFrame.Position
     local targetPosition = targetPart.Position + Vector3.new(0, _G.AimbotHeightOffset, 0)
-    
     local direction = (targetPosition - origin).Unit
     local distance = (targetPosition - origin).Magnitude
-    
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
     raycastParams.IgnoreWater = true
-    
     local result = workspace:Raycast(origin, direction * distance, raycastParams)
-    
     if result then
         local hitParent = result.Instance:FindFirstAncestorOfClass("Model")
         return hitParent and hitParent == targetPart.Parent
     end
-    
     return true
 end
 
 local function smoothAim(currentCFrame, targetPosition, smoothness)
     local currentLook = currentCFrame.LookVector
     local targetLook = (targetPosition - currentCFrame.Position).Unit
-    
-    -- Apply smooth aiming
     local newLook = currentLook:Lerp(targetLook, smoothness)
-    
-    -- Return the new CFrame
     return CFrame.new(currentCFrame.Position, currentCFrame.Position + newLook)
 end
 
 local function getAimbotTargets()
     local targets = {}
     local currentTime = tick()
-    
-    -- Cache NPCs for performance
     if currentTime - LastCacheUpdate > 0.5 then
         NPCsCache = findNPCs()
         LastCacheUpdate = currentTime
     end
-    
-    -- Add NPCs to targets
     for _, npc in ipairs(NPCsCache) do
         if npc and npc.Parent then
             local humanoid = npc:FindFirstChildOfClass("Humanoid")
@@ -1069,8 +802,6 @@ local function getAimbotTargets()
             end
         end
     end
-    
-    -- Add players to targets
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
@@ -1085,29 +816,23 @@ local function getAimbotTargets()
             end
         end
     end
-    
     return targets
 end
 
 local function getClosestTargetInFOV()
     if not _G.AimbotEnabled then return nil end
-    
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local closestDist = _G.AimbotFOV
     local closestTarget = nil
     local closestPart = nil
     local closestPosition = nil
-    
     local targets = getAimbotTargets()
-    
     for _, targetData in ipairs(targets) do
         local model = targetData.Model
         local targetPart = model:FindFirstChild(_G.AimbotTargetPart) or model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart")
-        
         if targetPart then
             local targetPosition = targetPart.Position + Vector3.new(0, _G.AimbotHeightOffset, 0)
             local screenPos, onScreen = Camera:WorldToScreenPoint(targetPosition)
-            
             if onScreen then
                 local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                 if dist < closestDist then
@@ -1121,27 +846,21 @@ local function getClosestTargetInFOV()
             end
         end
     end
-    
     return closestTarget, closestPart, closestPosition
 end
 
--- Main hitbox adjustment function
 local function adjustHitbox(character, headSize, isNPC)
     pcall(function()
         local head = character:FindFirstChild("Head")
         local humanoid = character:FindFirstChildOfClass("Humanoid")
-        
         if head and humanoid then
             if humanoid.Health > 0 then
-                -- Adjust hitbox when alive
                 head.Size = Vector3.new(headSize, headSize, headSize)
                 head.Transparency = 0.5
                 head.BrickColor = isNPC and BrickColor.new("Bright orange") or BrickColor.new("Bright red")
                 head.Material = Enum.Material.Neon
                 head.CanCollide = false
                 head.Massless = true
-                
-                -- Create/update ESP if enabled
                 if _G.ESPEnabled then
                     local espData
                     if isNPC then
@@ -1149,42 +868,30 @@ local function adjustHitbox(character, headSize, isNPC)
                     else
                         espData = PlayerESPBoxes[character] or createPlayerESPBox(character)
                     end
-                    if espData then
-                        updateESP(character, espData)
-                    end
+                    if espData then updateESP(character, espData) end
                 end
             else
-                -- Hide hitbox when dead
                 head.Transparency = 1
                 head.CanTouch = false
                 head.CanQuery = false
-                
-                -- Remove ESP when dead
                 local espData = isNPC and ESPBoxes[character] or PlayerESPBoxes[character]
                 if espData then
                     if espData.Highlight then espData.Highlight:Destroy() end
                     if espData.Billboard then espData.Billboard:Destroy() end
-                    if isNPC then
-                        ESPBoxes[character] = nil
-                    else
-                        PlayerESPBoxes[character] = nil
-                    end
+                    if isNPC then ESPBoxes[character] = nil else PlayerESPBoxes[character] = nil end
                 end
             end
         end
     end)
 end
 
--- Main loop for hitbox adjustment and aimbot
 RunService.RenderStepped:Connect(function()
     if not _G.Disabled then
-        -- Process players
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
                 local character = player.Character
                 if character then
                     if _G.TeamCheck and not isEnemy(player) then
-                        -- Reset teammate hitbox
                         local head = character:FindFirstChild("Head")
                         if head then
                             head.Size = Vector3.new(2, 1, 1)
@@ -1194,7 +901,6 @@ RunService.RenderStepped:Connect(function()
                             head.CanCollide = true
                             head.Massless = false
                         end
-                        -- Remove player ESP for teammates
                         local espData = PlayerESPBoxes[character]
                         if espData then
                             if espData.Highlight then espData.Highlight:Destroy() end
@@ -1207,27 +913,17 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         end
-        
-        -- Process NPCs
         if _G.NPCEnabled then
             local npcs = findNPCs()
-            for _, npc in ipairs(npcs) do
-                adjustHitbox(npc, _G.NPCHeadSize, true)
-            end
+            for _, npc in ipairs(npcs) do adjustHitbox(npc, _G.NPCHeadSize, true) end
         end
-        
-        -- Clean up dead ESP boxes
         for character, espData in pairs(ESPBoxes) do
             if not character.Parent then
                 if espData.Highlight then espData.Highlight:Destroy() end
                 if espData.Billboard then espData.Billboard:Destroy() end
                 ESPBoxes[character] = nil
-            elseif espData.IsNPC then
-                TrackedNPCs[character] = nil
-            end
+            elseif espData.IsNPC then TrackedNPCs[character] = nil end
         end
-        
-        -- Clean up dead Player ESP boxes
         for character, espData in pairs(PlayerESPBoxes) do
             if not character.Parent then
                 if espData.Highlight then espData.Highlight:Destroy() end
@@ -1236,7 +932,6 @@ RunService.RenderStepped:Connect(function()
             end
         end
     else
-        -- Reset all hitboxes when disabled
         for _, player in ipairs(Players:GetPlayers()) do
             local character = player.Character
             if character then
@@ -1251,72 +946,37 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         end
-        
-        -- Remove all ESP
-        for character, espData in pairs(ESPBoxes) do
+        for _, espData in pairs(ESPBoxes) do
             if espData.Highlight then espData.Highlight:Destroy() end
             if espData.Billboard then espData.Billboard:Destroy() end
-            ESPBoxes[character] = nil
         end
-        
-        for character, espData in pairs(PlayerESPBoxes) do
+        for _, espData in pairs(PlayerESPBoxes) do
             if espData.Highlight then espData.Highlight:Destroy() end
             if espData.Billboard then espData.Billboard:Destroy() end
-            PlayerESPBoxes[character] = nil
         end
+        ESPBoxes = {}; PlayerESPBoxes = {}
     end
-    
-    -- Aimbot processing
     if _G.AimbotEnabled then
-        -- Update FOV circle position
         if FOVCircle then
             FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
             FOVCircle.Radius = _G.AimbotFOV
             FOVCircle.Visible = true
         end
-        
-        -- Find and aim at closest target
         local targetData, targetPart, targetPosition = getClosestTargetInFOV()
         if targetData and targetPart and targetPosition then
-            local newCFrame = smoothAim(Camera.CFrame, targetPosition, _G.AimbotSmoothness)
-            Camera.CFrame = newCFrame
+            Camera.CFrame = smoothAim(Camera.CFrame, targetPosition, _G.AimbotSmoothness)
         end
     elseif FOVCircle then
         FOVCircle.Visible = false
     end
 end)
 
--- Raycast function for aimbot detection
-function RaycastForHitbox(origin, direction, length, ignoreList)
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = ignoreList
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.IgnoreWater = true
-
-    local ray = workspace:Raycast(origin, direction * length, raycastParams)
-    if ray then
-        local hit = ray.Instance
-        if hit and hit:IsA("BasePart") then
-            local character = hit.Parent
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            local head = character:FindFirstChild("Head")
-            
-            if humanoid and head and hit == head and humanoid.Health > 0 then
-                return character
-            end
-        end
-    end
-    return nil
-end
-
--- Player added/removed handlers
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function(character)
-        wait(1) -- Wait for character to fully load
-        TrackedNPCs[character] = nil -- Ensure player characters aren't tracked as NPCs
+        wait(1)
+        TrackedNPCs[character] = nil
     end)
 end)
-
 Players.PlayerRemoving:Connect(function(player)
     local character = player.Character
     if character and PlayerESPBoxes[character] then
@@ -1327,50 +987,31 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- Keybind to toggle GUI and features
 UserInputService.InputBegan:Connect(function(input, processed)
     if not processed then
         if input.KeyCode == Enum.KeyCode.RightShift then
             _G.Disabled = not _G.Disabled
-            if toggleUpdateFunctions["Enable Hitboxes"] then
-                toggleUpdateFunctions["Enable Hitboxes"](not _G.Disabled)
-            end
+            if toggleUpdateFunctions["Enable Hitboxes"] then toggleUpdateFunctions["Enable Hitboxes"](not _G.Disabled) end
         elseif input.KeyCode == Enum.KeyCode.Insert then
             toggleGUI()
         elseif input.KeyCode == Enum.KeyCode.F1 then
             _G.AimbotEnabled = not _G.AimbotEnabled
-            if toggleUpdateFunctions["Aimbot"] then
-                toggleUpdateFunctions["Aimbot"](_G.AimbotEnabled)
-            end
-            if _G.AimbotEnabled and not FOVCircle then
-                createFOVCircle()
-            elseif not _G.AimbotEnabled and FOVCircle then
-                FOVCircle:Remove()
-                FOVCircle = nil
-            end
+            if toggleUpdateFunctions["Aimbot"] then toggleUpdateFunctions["Aimbot"](_G.AimbotEnabled) end
+            if _G.AimbotEnabled and not FOVCircle then createFOVCircle()
+            elseif not _G.AimbotEnabled and FOVCircle then FOVCircle:Remove(); FOVCircle = nil end
             print("Aimbot: " .. (_G.AimbotEnabled and "ON" or "OFF"))
         elseif input.KeyCode == Enum.KeyCode.F2 then
             _G.WallCheck = not _G.WallCheck
-            if toggleUpdateFunctions["Wall Check"] then
-                toggleUpdateFunctions["Wall Check"](_G.WallCheck)
-            end
+            if toggleUpdateFunctions["Wall Check"] then toggleUpdateFunctions["Wall Check"](_G.WallCheck) end
             print("Wall Check: " .. (_G.WallCheck and "ON" or "OFF"))
         end
     end
 end)
 
--- Initialize
-print("Hitbox & Aimbot Configurator Loaded!")
+print("Modern Hitbox & Aimbot Configurator Loaded!")
 print("Press INSERT to toggle GUI")
 print("Press RightShift to toggle hitboxes")
 print("Press F1 to toggle Aimbot")
 print("Press F2 to toggle Wall Check")
-print("Toggle button is on the top right")
-print("GUI starts hidden - click the gear icon to open it")
-print("Players have separate ESP from NPCs!")
-print("Aimbot features: Smooth Aim, Wall Check, Team Check, FOV Circle")
-
--- Create FOV circle if aimbot is enabled on start
-if _G.AimbotEnabled then
-    createFOVCircle()
-end
+print("Aimbot default target: Torso")
+if _G.AimbotEnabled then createFOVCircle() end
